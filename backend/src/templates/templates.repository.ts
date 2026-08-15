@@ -18,6 +18,12 @@ export class TemplatesRepository {
             [templateId],
         );
     }
+    findBySlug(Slug: string): Promise<{ rows: Template[] }> {
+        return this.db.query<Template>(
+            `SELECT * FROM templates WHERE slug = $1`,
+            [Slug],
+        );
+    }
 
     async upsert(t: {
         slug: string;

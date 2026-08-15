@@ -20,6 +20,10 @@ export class JobsRepository {
         const { rows } = await this.db.query<Job>(`SELECT * FROM jobs WHERE id = $1`, [id]);
         return rows[0] ?? null;
     }
+    async findBySlug(slug: string): Promise<Job | null> {
+        const { rows } = await this.db.query<Job>(`SELECT * FROM jobs WHERE slug = $1`, [slug]);
+        return rows[0] ?? null;
+    }
 
     async findAll(): Promise<Job[]> {
         const { rows } = await this.db.query<Job>(`SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100`);

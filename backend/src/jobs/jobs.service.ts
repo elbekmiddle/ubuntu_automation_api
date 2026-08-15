@@ -14,7 +14,7 @@ export class JobsService {
     ) {}
 
     async enqueue(templateId: string, action: string, args: Record<string, unknown> = {}) {
-        const template = await this.templatesService.findById(templateId);
+        const template = await this.templatesService.findBySlug(templateId);
 
         if (!template.actions.includes(action)) {
             throw new NotFoundException(`Action "${action}" not defined for template "${templateId}"`);

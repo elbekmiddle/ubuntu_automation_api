@@ -1,0 +1,6 @@
+{
+  "slug": "screen-orientation",
+  "name": "Screen Orientation",
+  "description": "Toggle main display between normal and flipped landscape",
+  "actions": ["toggle"]
+}
