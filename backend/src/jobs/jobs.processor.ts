@@ -5,12 +5,16 @@ import { spawn } from 'child_process';
 import * as path from 'path';
 import { JobsRepository } from './jobs.repository';
 import { JobQueuePayload } from './jobs.types';
+import {RedisPubSubService}      from "../redis/redis-pubsub.service";
 
 @Processor('script-execution')
 export class JobsProcessor extends WorkerHost {
     private readonly logger = new Logger(JobsProcessor.name);
 
-    constructor(private readonly jobsRepo: JobsRepository) {
+    constructor(
+        private readonly jobsRepo: JobsRepository,
+        private readonly pubsub: RedisPubSubService
+    ) {
         super();
     }
 
@@ -32,9 +36,14 @@ export class JobsProcessor extends WorkerHost {
             });
 
             child.on('close', (code) => {
+
+                const status = code === 0 ? 'success' : 'failed'
                 this.jobsRepo
-                    .markFinished(jobId, code === 0 ? 'success' : 'failed', code)
-                    .then(() => resolve())
+                    .markFinished(jobId, status, code)
+                    .then(() => {
+                        this.pubsub.publish(`job:${jobId}:status`, {status, exitCode: code});
+                        resolve()
+                    })
                     .catch(reject);
             });
 
