@@ -32,6 +32,11 @@ export const api = {
       return found;
     },
     sync: () => request("/templates/sync", { method: "POST" }),
+    create: (dto) =>
+      request("/templates", {
+        method: "POST",
+        body: JSON.stringify(dto),
+      }),
     files: {
       list: (id) => request(`/templates/${id}/files`),
       read: (id, fileName) => request(`/templates/${id}/files/${fileName}`),

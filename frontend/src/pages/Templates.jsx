@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, RefreshCw } from "lucide-react";
+import { ArrowRight, RefreshCw, Plus } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button } from "../components/ui";
 
@@ -34,7 +34,14 @@ export default function Templates() {
       <PageHeader
         eyebrow={`${templates.length} registered`}
         title="Templates"
-        action={<Button icon={RefreshCw} iconSpin={loading} onClick={sync} disabled={loading}>Sync from disk</Button>}
+        action={
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+            <Button icon={RefreshCw} iconSpin={loading} onClick={sync} disabled={loading}>Sync from disk</Button>
+            <Link to="/templates/new">
+              <Button variant="accent" icon={Plus}>Add template</Button>
+            </Link>
+          </div>
+        }
       />
 
       <SectionLabel index="—">Catalog</SectionLabel>
@@ -52,7 +59,7 @@ export default function Templates() {
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{t.name}</div>
                 <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 12 }}>{t.description}</div>
-                <div style={{ display: "flex", gap: 6 }}>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {t.actions.map((a) => (
                     <span key={a} className="mono" style={{
                       fontSize: 11, color: "var(--text-secondary)", border: "1px solid var(--border)",
@@ -66,7 +73,16 @@ export default function Templates() {
           </Link>
         ))}
         {templates.length === 0 && (
-          <Panel><EmptyState>No templates found in templates-storage/</EmptyState></Panel>
+          <Panel>
+            <EmptyState>
+              No templates found in templates-storage/
+              <div style={{ marginTop: 14 }}>
+                <Link to="/templates/new">
+                  <Button variant="accent" icon={Plus}>Create your first template</Button>
+                </Link>
+              </div>
+            </EmptyState>
+          </Panel>
         )}
       </div>
     </div>

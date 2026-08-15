@@ -1,5 +1,6 @@
-import {Controller, Get, Param, Post} from '@nestjs/common';
+import {Body, Controller, Get, Param, Post} from '@nestjs/common';
 import {TemplatesService}             from "./templates.service";
+import type {CreateTemplateDTO}       from "./dto/create-template.dto";
 
 @Controller('templates')
 export class TemplatesController {
@@ -14,6 +15,11 @@ export class TemplatesController {
     @Get(':slug')
     findOne(@Param('slug') slug: string) {
         return this.templatesService.findById(slug);
+    }
+
+    @Post()
+    create(@Body() body: CreateTemplateDTO) {
+        return this.templatesService.createTemplate(body);
     }
 
     @Post('sync')

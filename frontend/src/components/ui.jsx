@@ -95,6 +95,87 @@ export function Button({ children, variant = "default", icon: Icon, iconSpin = f
   );
 }
 
+export function Field({ label, hint, children }) {
+  return (
+    <div style={{ marginBottom: 18 }}>
+      <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
+      {children}
+      {hint && (
+        <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{hint}</div>
+      )}
+    </div>
+  );
+}
+
+export function TextInput({ className = "", style, ...rest }) {
+  return (
+    <input
+      {...rest}
+      className={`mono ${className}`}
+      style={{
+        width: "100%",
+        background: "var(--surface-raised)",
+        border: "1px solid var(--border)",
+        color: "var(--text)",
+        padding: "10px 12px",
+        fontSize: 13,
+        borderRadius: 2,
+        outline: "none",
+        ...style,
+      }}
+    />
+  );
+}
+
+export function TextArea({ className = "", style, ...rest }) {
+  return (
+    <textarea
+      {...rest}
+      className={`mono ${className}`}
+      spellCheck={false}
+      style={{
+        width: "100%",
+        background: "var(--surface-raised)",
+        border: "1px solid var(--border)",
+        color: "var(--text)",
+        padding: "10px 12px",
+        fontSize: 13,
+        lineHeight: 1.6,
+        borderRadius: 2,
+        outline: "none",
+        resize: "vertical",
+        ...style,
+      }}
+    />
+  );
+}
+
+export function IconButton({ icon: Icon, className = "", style, ...rest }) {
+  return (
+    <button
+      {...rest}
+      className={`tui-btn ${className}`}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 30,
+        height: 30,
+        background: "transparent",
+        border: "1px solid var(--border)",
+        color: "var(--text-secondary)",
+        borderRadius: 2,
+        cursor: rest.disabled ? "default" : "pointer",
+        opacity: rest.disabled ? 0.5 : 1,
+        flexShrink: 0,
+        ...style,
+      }}
+    >
+      {Icon && <Icon size={14} />}
+    </button>
+  );
+}
+
 export function EmptyState({ children }) {
   return (
     <div className="mono" style={{ padding: "44px 20px", textAlign: "center", color: "var(--text-muted)", fontSize: 13 }}>
