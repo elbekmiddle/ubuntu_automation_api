@@ -1,0 +1,6 @@
+{
+  "slug": "postgres",
+  "name": "PostgreSQL",
+  "description": "PostgreSQL development environment",
+  "actions": ["install", "configure", "uninstall"]
+}
