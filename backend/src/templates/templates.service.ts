@@ -12,7 +12,7 @@ import * as path from 'path';
 import { TemplatesRepository } from './templates.repository';
 import { TemplateManifest } from './templates.types';
 import {CreateTemplateDTO}                     from "./dto/create-template.dto";
-import {TEMPLATE_ERROR_CODES, TEMPLATE_ERRORS} from "../config/errors/error-code";
+import {TEMPLATE_ERROR_CODES, TEMPLATE_ERRORS} from "../config/errors/template-error-code";
 
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -60,12 +60,22 @@ export class TemplatesService implements OnModuleInit {
 
     async findById(Id: string) {
         const { rows } = await this.repo.findById(Id);
-        if (!rows[0]) throw new NotFoundException(`Template "${Id}" not found`);
+        if (!rows[0]) {
+            throw new NotFoundException({
+                code: TEMPLATE_ERROR_CODES.NOT_FOUND,
+                message: `${TEMPLATE_ERRORS[TEMPLATE_ERROR_CODES.NOT_FOUND]}: "${Id}"`,
+            });
+        }
         return rows[0];
     }
     async findBySlug(Slug: string) {
         const { rows } = await this.repo.findBySlug(Slug);
-        if (!rows[0]) throw new NotFoundException(`Template "${Slug}" not found`);
+        if (!rows[0]) {
+            throw new NotFoundException({
+                code: TEMPLATE_ERROR_CODES.NOT_FOUND,
+                message: `${TEMPLATE_ERRORS[TEMPLATE_ERROR_CODES.NOT_FOUND]}: "${Slug}"`,
+            });
+        }
         return rows[0];
     }
     async createTemplate(dto: CreateTemplateDTO) {

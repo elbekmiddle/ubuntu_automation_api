@@ -1,12 +1,15 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
 import * as si from 'systeminformation';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { SYSTEM_ERROR_CODES, SYSTEM_ERRORS } from '../config/errors/system-error-code';
 
 const execAsync = promisify(exec);
 
 @Injectable()
 export class SystemService {
+    private readonly logger = new Logger(SystemService.name);
+
     async getCpu() {
         const [load, info] = await Promise.all([si.currentLoad(), si.cpu()]);
         return {
@@ -73,7 +76,10 @@ export class SystemService {
                 .filter(Boolean)
                 .map((line) => JSON.parse(line));
             return { installed: true, running: true, containers };
-        } catch {
+        } catch (error) {
+            this.logger.warn(
+                `Docker unavailable: ${error instanceof Error ? error.message : String(error)}`,
+            );
             return { installed: false, running: false, containers: [] };
         }
     }
@@ -90,13 +96,27 @@ export class SystemService {
     }
 
     async getOverview() {
-        const [cpu, memory, disk, os, docker] = await Promise.all([
-            this.getCpu(),
-            this.getMemory(),
-            this.getDisk(),
-            this.getOsInfo(),
-            this.getDocker(),
-        ]);
-        return { cpu, memory, disk, os, docker };
+        try {
+            const [cpu, memory, disk, os, docker] = await Promise.all([
+                this.getCpu(),
+                this.getMemory(),
+                this.getDisk(),
+                this.getOsInfo(),
+                this.getDocker(),
+            ]);
+            return { cpu, memory, disk, os, docker };
+        } catch (error) {
+            this.logger.error(
+                'Failed to fetch system overview',
+                error instanceof Error ? error.stack : String(error),
+            );
+            throw new HttpException(
+                {
+                    code: SYSTEM_ERROR_CODES.FETCH_FAILED,
+                    message: SYSTEM_ERRORS[SYSTEM_ERROR_CODES.FETCH_FAILED],
+                },
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
     }
 }

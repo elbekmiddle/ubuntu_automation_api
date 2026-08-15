@@ -45,9 +45,11 @@ export function SectionLabel({ index, children }) {
   );
 }
 
-export function Panel({ children, style, ...rest }) {
+export const Panel = React.forwardRef(function Panel({ children, style, className = "", ...rest }, ref) {
   return (
     <div
+      ref={ref}
+      className={className}
       style={{
         background: "var(--surface)",
         border: "1px solid var(--border)",
@@ -59,18 +61,19 @@ export function Panel({ children, style, ...rest }) {
       {children}
     </div>
   );
-}
+});
 
-export function Button({ children, variant = "default", icon: Icon, ...rest }) {
+export function Button({ children, variant = "default", icon: Icon, iconSpin = false, className = "", ...rest }) {
   const variants = {
-    default: { background: "transparent", color: "var(--text)", border: "1px solid var(--border)" },
+    default: { background: "var(--surface-raised)", color: "var(--text)", border: "1px solid var(--border)" },
     accent: { background: "var(--accent)", color: "var(--accent-ink)", border: "1px solid var(--accent)" },
     ghost: { background: "transparent", color: "var(--text-secondary)", border: "1px solid transparent" },
+    danger: { background: "transparent", color: "var(--danger)", border: "1px solid var(--danger)" },
   };
   return (
     <button
       {...rest}
-      className="mono"
+      className={`mono tui-btn ${className}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -81,12 +84,12 @@ export function Button({ children, variant = "default", icon: Icon, ...rest }) {
         borderRadius: 2,
         cursor: rest.disabled ? "default" : "pointer",
         opacity: rest.disabled ? 0.5 : 1,
-        transition: "background 0.12s ease, border-color 0.12s ease",
+        transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
         ...variants[variant],
         ...rest.style,
       }}
     >
-      {Icon && <Icon size={13} />}
+      {Icon && <Icon size={13} className={iconSpin ? "spin" : ""} />}
       {children}
     </button>
   );
@@ -103,6 +106,7 @@ export function EmptyState({ children }) {
 export function PageHeader({ eyebrow, title, action }) {
   return (
     <div
+      className="page-header-row"
       style={{
         display: "flex",
         justifyContent: "space-between",
@@ -110,13 +114,15 @@ export function PageHeader({ eyebrow, title, action }) {
         marginBottom: 28,
         paddingBottom: 16,
         borderBottom: "1px solid var(--border)",
+        gap: 16,
+        flexWrap: "wrap",
       }}
     >
-      <div>
+      <div style={{ minWidth: 0 }}>
         {eyebrow && <div className="eyebrow" style={{ marginBottom: 8, color: "var(--text-secondary)" }}>{eyebrow}</div>}
         <h1
           className="mono crt-glow"
-          style={{ fontSize: 22, fontWeight: 600, margin: 0, color: "var(--text)" }}
+          style={{ fontSize: 22, fontWeight: 600, margin: 0, color: "var(--text)", overflowWrap: "anywhere" }}
         >
           <span style={{ color: "var(--accent)" }}>#</span> {title}
         </h1>

@@ -76,7 +76,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="overview"
         title="dashboard"
-        action={<Button icon={RefreshCw} onClick={load} disabled={loading}>refresh</Button>}
+        action={<Button icon={RefreshCw} iconSpin={loading} onClick={load} disabled={loading}>refresh</Button>}
       />
 
       {error && (
@@ -86,7 +86,7 @@ export default function Dashboard() {
       )}
 
       <SectionLabel index="01">hardware</SectionLabel>
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 36 }}>
+      <div className="spec-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 36 }}>
         <Spec icon={Cpu} label="cpu" value={cpu ? `${cpu.currentLoad.toFixed(0)}%` : "—"}
           sub={cpu ? `${cpu.cores} cores` : ""} pct={cpu?.currentLoad} />
         <Spec icon={MemoryStick} label="memory" value={mem ? `${mem.usedPercent.toFixed(0)}%` : "—"}

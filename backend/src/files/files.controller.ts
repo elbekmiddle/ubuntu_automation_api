@@ -1,5 +1,6 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { FilesService } from './files.service';
+import type { WriteFileDTO } from './dto/write-file.dto';
 
 @Controller('templates/:id/files')
 export class FilesController {
@@ -19,7 +20,7 @@ export class FilesController {
     write(
         @Param('id') slug: string,
         @Param('fileName') fileName: string,
-        @Body() body: { content: string },
+        @Body() body: WriteFileDTO,
     ) {
         return this.filesService.writeFile(slug, fileName, body.content);
     }

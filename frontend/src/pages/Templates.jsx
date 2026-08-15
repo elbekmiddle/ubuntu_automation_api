@@ -34,7 +34,7 @@ export default function Templates() {
       <PageHeader
         eyebrow={`${templates.length} registered`}
         title="Templates"
-        action={<Button icon={RefreshCw} onClick={sync} disabled={loading}>Sync from disk</Button>}
+        action={<Button icon={RefreshCw} iconSpin={loading} onClick={sync} disabled={loading}>Sync from disk</Button>}
       />
 
       <SectionLabel index="—">Catalog</SectionLabel>
@@ -43,13 +43,13 @@ export default function Templates() {
           <Link key={t.id} to={`/templates/${t.id}`}>
             <Panel
               style={{
-                padding: "20px 22px", display: "flex", justifyContent: "space-between", alignItems: "center",
+                padding: "20px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap",
                 transition: "border-color 0.12s ease",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{t.name}</div>
                 <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 12 }}>{t.description}</div>
                 <div style={{ display: "flex", gap: 6 }}>
