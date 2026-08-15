@@ -4,6 +4,7 @@ import {ConfigModule} from "@nestjs/config";
 import { TemplatesModule } from './templates/templates.module';
 import {BullModule} from "@nestjs/bullmq";
 import { JobsModule } from './jobs/jobs.module';
+import { SystemModule } from './system/system.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { JobsModule } from './jobs/jobs.module';
         port: Number(process.env.REDIS_PORT ?? '6379'),
     }
 }),
-      JobsModule
+      JobsModule,
+      SystemModule
   ],
   controllers: [],
   providers: [],
