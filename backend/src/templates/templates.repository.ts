@@ -12,10 +12,10 @@ export class TemplatesRepository {
         );
     }
 
-    findBySlug(slug: string): Promise<{ rows: Template[] }> {
+    findById(templateId: string): Promise<{ rows: Template[] }> {
         return this.db.query<Template>(
-            `SELECT * FROM templates WHERE slug = $1`,
-            [slug],
+            `SELECT * FROM templates WHERE id = $1`,
+            [templateId],
         );
     }
 

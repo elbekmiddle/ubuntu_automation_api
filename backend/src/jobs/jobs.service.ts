@@ -13,11 +13,11 @@ export class JobsService {
         @InjectQueue('script-execution') private readonly queue: Queue<JobQueuePayload>,
     ) {}
 
-    async enqueue(templateSlug: string, action: string, args: Record<string, unknown> = {}) {
-        const template = await this.templatesService.findBySlug(templateSlug);
+    async enqueue(templateId: string, action: string, args: Record<string, unknown> = {}) {
+        const template = await this.templatesService.findById(templateId);
 
         if (!template.actions.includes(action)) {
-            throw new NotFoundException(`Action "${action}" not defined for template "${templateSlug}"`);
+            throw new NotFoundException(`Action "${action}" not defined for template "${templateId}"`);
         }
 
         const job = await this.jobsRepo.create(template.id, action, args);

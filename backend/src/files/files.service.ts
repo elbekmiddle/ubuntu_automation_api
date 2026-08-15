@@ -7,8 +7,8 @@ import { TemplatesService } from '../templates/templates.service';
 export class FilesService {
     constructor(private readonly templatesService: TemplatesService) {}
 
-    private async resolveSafePath(templateSlug: string, fileName: string): Promise<string> {
-        const template = await this.templatesService.findBySlug(templateSlug);
+    private async resolveSafePath(TemplateId: string, fileName: string): Promise<string> {
+        const template = await this.templatesService.findById(TemplateId);
         const templateRoot = path.resolve(template.path);
 
         // fileName ichida "../" bo'lishi mumkin emas — faqat oddiy fayl nomi
@@ -21,16 +21,16 @@ export class FilesService {
         return requested;
     }
 
-    async listFiles(templateSlug: string) {
-        const template = await this.templatesService.findBySlug(templateSlug);
+    async listFiles(TemplateId: string) {
+        const template = await this.templatesService.findById(TemplateId);
         const entries = await fs.readdir(template.path, { withFileTypes: true });
         return entries
             .filter((e) => e.isFile())
             .map((e) => e.name);
     }
 
-    async readFile(templateSlug: string, fileName: string) {
-        const filePath = await this.resolveSafePath(templateSlug, fileName);
+    async readFile(TemplateId: string, fileName: string) {
+        const filePath = await this.resolveSafePath(TemplateId, fileName);
         try {
             const content = await fs.readFile(filePath, 'utf-8');
             return { fileName, content };
@@ -39,8 +39,8 @@ export class FilesService {
         }
     }
 
-    async writeFile(templateSlug: string, fileName: string, content: string) {
-        const filePath = await this.resolveSafePath(templateSlug, fileName);
+    async writeFile(TemplateId: string, fileName: string, content: string) {
+        const filePath = await this.resolveSafePath(TemplateId, fileName);
         await fs.writeFile(filePath, content, 'utf-8');
         return { fileName, saved: true };
     }

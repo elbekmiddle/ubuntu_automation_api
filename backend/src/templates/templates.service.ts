@@ -46,9 +46,9 @@ export class TemplatesService implements OnModuleInit {
         return rows;
     }
 
-    async findBySlug(slug: string) {
-        const { rows } = await this.repo.findBySlug(slug);
-        if (!rows[0]) throw new NotFoundException(`Template "${slug}" not found`);
+    async findById(Id: string) {
+        const { rows } = await this.repo.findById(Id);
+        if (!rows[0]) throw new NotFoundException(`Template "${Id}" not found`);
         return rows[0];
     }
 }

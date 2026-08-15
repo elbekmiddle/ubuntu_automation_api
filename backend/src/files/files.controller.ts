@@ -1,23 +1,23 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { FilesService } from './files.service';
 
-@Controller('templates/:slug/files')
+@Controller('templates/:id/files')
 export class FilesController {
     constructor(private readonly filesService: FilesService) {}
 
     @Get()
-    list(@Param('slug') slug: string) {
+    list(@Param('id') slug: string) {
         return this.filesService.listFiles(slug);
     }
 
     @Get(':fileName')
-    read(@Param('slug') slug: string, @Param('fileName') fileName: string) {
+    read(@Param('id') slug: string, @Param('fileName') fileName: string) {
         return this.filesService.readFile(slug, fileName);
     }
 
     @Put(':fileName')
     write(
-        @Param('slug') slug: string,
+        @Param('id') slug: string,
         @Param('fileName') fileName: string,
         @Body() body: { content: string },
     ) {

@@ -13,7 +13,7 @@ export class TemplatesController {
     }
     @Get(':slug')
     findOne(@Param('slug') slug: string) {
-        return this.templatesService.findBySlug(slug);
+        return this.templatesService.findById(slug);
     }
 
     @Post('sync')
