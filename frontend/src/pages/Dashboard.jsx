@@ -23,9 +23,9 @@ function timeAgo(iso) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
-function Spec({ icon: Icon, label, value, sub, pct }) {
+function Spec({ icon: Icon, label, value, sub, pct, className }) {
   return (
-    <Panel style={{ padding: 20, flex: 1, minWidth: 190 }}>
+    <Panel className={className} style={{ padding: 20, flex: 1, minWidth: 190 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <Icon size={14} color="var(--text-secondary)" />
         <span className="eyebrow">{label}</span>
@@ -76,7 +76,7 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="overview"
         title="dashboard"
-        action={<Button icon={RefreshCw} iconSpin={loading} onClick={load} disabled={loading}>refresh</Button>}
+        action={<Button icon={RefreshCw} onClick={load} disabled={loading}>refresh</Button>}
       />
 
       {error && (
@@ -87,29 +87,29 @@ export default function Dashboard() {
 
       <SectionLabel index="01">hardware</SectionLabel>
       <div className="spec-grid" style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 36 }}>
-        <Spec icon={Cpu} label="cpu" value={cpu ? `${cpu.currentLoad.toFixed(0)}%` : "—"}
+        <Spec className="fade-in-up stagger-1" icon={Cpu} label="cpu" value={cpu ? `${cpu.currentLoad.toFixed(0)}%` : "—"}
           sub={cpu ? `${cpu.cores} cores` : ""} pct={cpu?.currentLoad} />
-        <Spec icon={MemoryStick} label="memory" value={mem ? `${mem.usedPercent.toFixed(0)}%` : "—"}
+        <Spec className="fade-in-up stagger-2" icon={MemoryStick} label="memory" value={mem ? `${mem.usedPercent.toFixed(0)}%` : "—"}
           sub={mem ? `${fmtBytes(mem.used)} / ${fmtBytes(mem.total)}` : ""} pct={mem?.usedPercent} />
-        <Spec icon={HardDrive} label="disk" value={disk ? `${disk.usePercent.toFixed(0)}%` : "—"}
+        <Spec className="fade-in-up stagger-3" icon={HardDrive} label="disk" value={disk ? `${disk.usePercent.toFixed(0)}%` : "—"}
           sub={disk ? `${fmtBytes(disk.used)} / ${fmtBytes(disk.size)}` : ""} pct={disk?.usePercent} />
-        <Spec icon={Container} label="docker" value={system?.docker?.containers?.length ?? 0}
+        <Spec className="fade-in-up stagger-4" icon={Container} label="docker" value={system?.docker?.containers?.length ?? 0}
           sub={system?.docker?.running ? "● running" : "○ stopped"} />
       </div>
 
       {os && (
-        <>
+        <div className="fade-in-up stagger-5">
           <SectionLabel index="02">system</SectionLabel>
           <Panel style={{ padding: "16px 20px", marginBottom: 36, display: "flex", gap: 32 }} className="mono">
             <div><span style={{ color: "var(--text-muted)" }}>distro </span>{os.distro} {os.release}</div>
             <div><span style={{ color: "var(--text-muted)" }}>arch </span>{os.arch}</div>
             <div><span style={{ color: "var(--text-muted)" }}>kernel </span>{os.kernel}</div>
           </Panel>
-        </>
+        </div>
       )}
 
       {system?.docker?.containers?.length > 0 && (
-        <>
+        <div className="fade-in-up stagger-6">
           <SectionLabel index="03">running containers</SectionLabel>
           <Panel style={{ marginBottom: 36 }}>
             {system.docker.containers.map((c, i) => (
@@ -124,9 +124,10 @@ export default function Dashboard() {
               </div>
             ))}
           </Panel>
-        </>
+        </div>
       )}
 
+      <div className="fade-in-up stagger-6">
       <SectionLabel index="04">recent jobs</SectionLabel>
       <Panel>
         {jobs.length === 0 && <EmptyState>no jobs yet</EmptyState>}
@@ -151,6 +152,7 @@ export default function Dashboard() {
           </Link>
         ))}
       </Panel>
+      </div>
     </div>
   );
 }

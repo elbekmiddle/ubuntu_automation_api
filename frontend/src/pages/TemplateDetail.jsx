@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Play, Loader2, FileCode, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "../lib/api";
-import { PageHeader, SectionLabel, Panel, EmptyState, Button } from "../components/ui";
+import { PageHeader, SectionLabel, Panel, EmptyState } from "../components/ui";
 
 export default function TemplateDetail() {
   const { id } = useParams();
@@ -56,17 +56,21 @@ export default function TemplateDetail() {
       <SectionLabel index="01">Actions</SectionLabel>
       <div style={{ display: "flex", gap: 10, marginBottom: 40, flexWrap: "wrap" }}>
         {template.actions.map((a) => (
-          <Button
+          <button
             key={a}
-            variant="accent"
-            icon={runningAction === a ? Loader2 : Play}
-            iconSpin={runningAction === a}
             onClick={() => run(a)}
             disabled={runningAction === a}
-            style={{ padding: "11px 18px", fontSize: 13 }}
+            style={{
+              display: "flex", alignItems: "center", gap: 8,
+              background: "var(--text)", color: "var(--bg)", border: "none",
+              padding: "11px 18px", fontSize: 13, fontWeight: 500, borderRadius: 3,
+              cursor: runningAction === a ? "default" : "pointer",
+              opacity: runningAction === a ? 0.6 : 1,
+            }}
           >
+            {runningAction === a ? <Loader2 size={14} className="spin" /> : <Play size={14} />}
             {a}
-          </Button>
+          </button>
         ))}
       </div>
 

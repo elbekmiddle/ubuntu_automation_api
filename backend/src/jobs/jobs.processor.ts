@@ -7,6 +7,9 @@ import { JobsRepository } from './jobs.repository';
 import { JobQueuePayload } from './jobs.types';
 import {RedisPubSubService}      from "../redis/redis-pubsub.service";
 
+const SCRIPT_TIMEOUT_MS = Number(process.env.SCRIPT_TIMEOUT_MS ?? 5 * 60 * 1000); // default 5 daqiqa
+const MAX_LOG_CHUNK = 8000; // bitta yozuv juda katta bo'lsa DB'ni shishirmaslik uchun kesamiz
+
 @Processor('script-execution')
 export class JobsProcessor extends WorkerHost {
     private readonly logger = new Logger(JobsProcessor.name);
@@ -23,20 +26,44 @@ export class JobsProcessor extends WorkerHost {
         const scriptPath = path.join(templatePath, `${action}.sh`);
 
         return new Promise((resolve, reject) => {
-            const child = spawn('bash', [scriptPath], { cwd: templatePath });
+            // Minimal, nazorat qilinadigan environment — host'ning to'liq env'ini (secretlar, tokenlar)
+            // script ichiga oqizib yubormaslik uchun.
+            const safeEnv = {
+                PATH: process.env.PATH,
+                HOME: process.env.HOME,
+                LANG: process.env.LANG ?? 'C.UTF-8',
+            };
+
+            const child = spawn('bash', [scriptPath], {
+                cwd: templatePath,
+                env: safeEnv,
+                timeout: SCRIPT_TIMEOUT_MS,
+                killSignal: 'SIGKILL',
+            });
+
+            const timeoutTimer = setTimeout(() => {
+                this.logger.warn(`Job ${jobId} timed out after ${SCRIPT_TIMEOUT_MS}ms, killing`);
+                child.kill('SIGKILL');
+            }, SCRIPT_TIMEOUT_MS);
 
             this.jobsRepo.markRunning(jobId, child.pid!).catch((e) => this.logger.error(e));
 
+            const truncate = (s: string) => (s.length > MAX_LOG_CHUNK ? s.slice(0, MAX_LOG_CHUNK) + '\n…[truncated]' : s);
+
             child.stdout.on('data', (data: Buffer) => {
-                this.jobsRepo.appendLog(jobId, 'stdout', data.toString()).catch((e) => this.logger.error(e));
+                const chunk = truncate(data.toString());
+                this.jobsRepo.appendLog(jobId, 'stdout', chunk).catch((e) => this.logger.error(e));
+                this.pubsub.publish(`job:${jobId}:log`, { stream: 'stdout', chunk, ts: Date.now() });
             });
 
             child.stderr.on('data', (data: Buffer) => {
-                this.jobsRepo.appendLog(jobId, 'stderr', data.toString()).catch((e) => this.logger.error(e));
+                const chunk = truncate(data.toString());
+                this.jobsRepo.appendLog(jobId, 'stderr', chunk).catch((e) => this.logger.error(e));
+                this.pubsub.publish(`job:${jobId}:log`, { stream: 'stderr', chunk, ts: Date.now() });
             });
 
             child.on('close', (code) => {
-
+                clearTimeout(timeoutTimer);
                 const status = code === 0 ? 'success' : 'failed'
                 this.jobsRepo
                     .markFinished(jobId, status, code)
@@ -48,6 +75,7 @@ export class JobsProcessor extends WorkerHost {
             });
 
             child.on('error', (err) => {
+                clearTimeout(timeoutTimer);
                 this.jobsRepo.markFinished(jobId, 'failed', null).finally(() => reject(err));
             });
         });

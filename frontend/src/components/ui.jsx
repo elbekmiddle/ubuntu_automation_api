@@ -23,7 +23,26 @@ export function StatusBadge({ status }) {
 }
 
 export function AsciiBar({ pct = 0, width = 10 }) {
-  const filled = Math.round((Math.min(pct, 100) / 100) * width);
+  const [animated, setAnimated] = React.useState(0);
+
+  React.useEffect(() => {
+    let raf;
+    const start = performance.now();
+    const duration = 700;
+    const from = 0;
+    const to = Math.min(pct, 100);
+
+    const tick = (now) => {
+      const t = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      setAnimated(from + (to - from) * eased);
+      if (t < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [pct]);
+
+  const filled = Math.round((animated / 100) * width);
   const bar = "█".repeat(filled) + "░".repeat(Math.max(width - filled, 0));
   const color = pct > 85 ? "var(--danger)" : pct > 65 ? "var(--warning)" : "var(--accent)";
   return (
@@ -45,11 +64,9 @@ export function SectionLabel({ index, children }) {
   );
 }
 
-export const Panel = React.forwardRef(function Panel({ children, style, className = "", ...rest }, ref) {
+export function Panel({ children, style, ...rest }) {
   return (
     <div
-      ref={ref}
-      className={className}
       style={{
         background: "var(--surface)",
         border: "1px solid var(--border)",
@@ -61,19 +78,18 @@ export const Panel = React.forwardRef(function Panel({ children, style, classNam
       {children}
     </div>
   );
-});
+}
 
-export function Button({ children, variant = "default", icon: Icon, iconSpin = false, className = "", ...rest }) {
+export function Button({ children, variant = "default", icon: Icon, ...rest }) {
   const variants = {
-    default: { background: "var(--surface-raised)", color: "var(--text)", border: "1px solid var(--border)" },
+    default: { background: "transparent", color: "var(--text)", border: "1px solid var(--border)" },
     accent: { background: "var(--accent)", color: "var(--accent-ink)", border: "1px solid var(--accent)" },
     ghost: { background: "transparent", color: "var(--text-secondary)", border: "1px solid transparent" },
-    danger: { background: "transparent", color: "var(--danger)", border: "1px solid var(--danger)" },
   };
   return (
     <button
       {...rest}
-      className={`mono tui-btn ${className}`}
+      className={`mono tui-btn ${rest.className ?? ""}`}
       style={{
         display: "inline-flex",
         alignItems: "center",
@@ -84,94 +100,13 @@ export function Button({ children, variant = "default", icon: Icon, iconSpin = f
         borderRadius: 2,
         cursor: rest.disabled ? "default" : "pointer",
         opacity: rest.disabled ? 0.5 : 1,
-        transition: "background 0.12s ease, border-color 0.12s ease, transform 0.12s ease",
+        transition: "background 0.12s ease, border-color 0.12s ease",
         ...variants[variant],
         ...rest.style,
       }}
     >
-      {Icon && <Icon size={13} className={iconSpin ? "spin" : ""} />}
+      {Icon && <Icon size={13} />}
       {children}
-    </button>
-  );
-}
-
-export function Field({ label, hint, children }) {
-  return (
-    <div style={{ marginBottom: 18 }}>
-      <div className="eyebrow" style={{ marginBottom: 8 }}>{label}</div>
-      {children}
-      {hint && (
-        <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 6 }}>{hint}</div>
-      )}
-    </div>
-  );
-}
-
-export function TextInput({ className = "", style, ...rest }) {
-  return (
-    <input
-      {...rest}
-      className={`mono ${className}`}
-      style={{
-        width: "100%",
-        background: "var(--surface-raised)",
-        border: "1px solid var(--border)",
-        color: "var(--text)",
-        padding: "10px 12px",
-        fontSize: 13,
-        borderRadius: 2,
-        outline: "none",
-        ...style,
-      }}
-    />
-  );
-}
-
-export function TextArea({ className = "", style, ...rest }) {
-  return (
-    <textarea
-      {...rest}
-      className={`mono ${className}`}
-      spellCheck={false}
-      style={{
-        width: "100%",
-        background: "var(--surface-raised)",
-        border: "1px solid var(--border)",
-        color: "var(--text)",
-        padding: "10px 12px",
-        fontSize: 13,
-        lineHeight: 1.6,
-        borderRadius: 2,
-        outline: "none",
-        resize: "vertical",
-        ...style,
-      }}
-    />
-  );
-}
-
-export function IconButton({ icon: Icon, className = "", style, ...rest }) {
-  return (
-    <button
-      {...rest}
-      className={`tui-btn ${className}`}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        justifyContent: "center",
-        width: 30,
-        height: 30,
-        background: "transparent",
-        border: "1px solid var(--border)",
-        color: "var(--text-secondary)",
-        borderRadius: 2,
-        cursor: rest.disabled ? "default" : "pointer",
-        opacity: rest.disabled ? 0.5 : 1,
-        flexShrink: 0,
-        ...style,
-      }}
-    >
-      {Icon && <Icon size={14} />}
     </button>
   );
 }
@@ -187,7 +122,6 @@ export function EmptyState({ children }) {
 export function PageHeader({ eyebrow, title, action }) {
   return (
     <div
-      className="page-header-row"
       style={{
         display: "flex",
         justifyContent: "space-between",
@@ -195,15 +129,13 @@ export function PageHeader({ eyebrow, title, action }) {
         marginBottom: 28,
         paddingBottom: 16,
         borderBottom: "1px solid var(--border)",
-        gap: 16,
-        flexWrap: "wrap",
       }}
     >
-      <div style={{ minWidth: 0 }}>
+      <div>
         {eyebrow && <div className="eyebrow" style={{ marginBottom: 8, color: "var(--text-secondary)" }}>{eyebrow}</div>}
         <h1
           className="mono crt-glow"
-          style={{ fontSize: 22, fontWeight: 600, margin: 0, color: "var(--text)", overflowWrap: "anywhere" }}
+          style={{ fontSize: 22, fontWeight: 600, margin: 0, color: "var(--text)" }}
         >
           <span style={{ color: "var(--accent)" }}>#</span> {title}
         </h1>

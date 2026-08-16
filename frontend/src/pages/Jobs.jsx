@@ -39,7 +39,7 @@ export default function Jobs() {
       <PageHeader
         eyebrow={`${jobs.length} total`}
         title="Jobs"
-        action={<Button icon={RefreshCw} iconSpin={loading} onClick={load} disabled={loading}>Refresh</Button>}
+        action={<Button icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>}
       />
 
       <SectionLabel index="—">History</SectionLabel>
@@ -50,15 +50,15 @@ export default function Jobs() {
             key={j.id}
             to={`/jobs/${j.id}`}
             style={{
-              display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
+              display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "15px 20px", borderTop: i === 0 ? "none" : "1px solid var(--border)",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-              <span style={{ fontSize: 13.5, overflowWrap: "anywhere" }}>{j.action}</span>
-              <span className="mono" style={{ fontSize: 11.5, color: "var(--text-muted)", flexShrink: 0 }}>#{j.id.slice(0, 8)}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 13.5 }}>{j.action}</span>
+              <span className="mono" style={{ fontSize: 11.5, color: "var(--text-muted)" }}>#{j.id.slice(0, 8)}</span>
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 20, flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
               <span style={{ fontSize: 12, color: "var(--text-muted)" }}>{timeAgo(j.created_at)}</span>
               <StatusBadge status={j.status} />
               <ChevronRight size={14} color="var(--text-muted)" />

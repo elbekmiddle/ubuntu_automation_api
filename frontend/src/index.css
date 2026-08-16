@@ -1,30 +1,23 @@
 @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 :root {
-  /* Softer, lower-contrast dark palette — easier on the eyes for long sessions */
   --bg: #10151A;
-  --surface: #141A21;
-  --surface-raised: #182029;
-  --border: #223039;
-  --border-strong: #3AA7BE;
-  --text: #DCE7EA;
-  --text-secondary: #8CA5AC;
-  --text-muted: #566B72;
-  --accent: #5FCBDB;
-  --accent-ink: #0C1216;
-  --success: #7DD9A0;
+  --surface: #141B22;
+  --border: #24404A;
+  --border-strong: #3FA6BE;
+  --text: #E4EDEE;
+  --text-secondary: #8CA8AE;
+  --text-muted: #5A7379;
+  --accent: #5FD3E0;
+  --accent-ink: #0A0E12;
+  --success: #6FDB93;
   --danger: #F0847E;
-  --warning: #E8C170;
-  --info: #5FCBDB;
+  --warning: #F0C97A;
+  --info: #5FD3E0;
 
   --font-display: 'JetBrains Mono', monospace;
   --font-body: 'JetBrains Mono', monospace;
   --font-mono: 'JetBrains Mono', monospace;
-
-  --sidebar-w: 220px;
-  --sidebar-w-collapsed: 60px;
-  --topbar-h: 56px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * { box-sizing: border-box; }
@@ -54,8 +47,7 @@ a { color: inherit; text-decoration: none; }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 5px; }
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -86,25 +78,11 @@ a { color: inherit; text-decoration: none; }
 .blink { animation: blink 1.1s steps(1) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
-.crt-glow { text-shadow: 0 0 10px rgba(95, 203, 219, 0.18); }
+.crt-glow { text-shadow: 0 0 12px rgba(95, 211, 224, 0.25); }
 
-/* ---------------------------------------------------------------- */
-/* Page transitions                                                  */
-/* ---------------------------------------------------------------- */
-.page-enter {
-  animation: page-fade-in 0.18s var(--ease);
-}
-@keyframes page-fade-in {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ---------------------------------------------------------------- */
-/* TUI-style buttons — sharp terminal corner brackets on hover/focus */
-/* ---------------------------------------------------------------- */
+/* terminal corner-bracket button */
 .tui-btn {
   position: relative;
-  isolation: isolate;
 }
 .tui-btn::before,
 .tui-btn::after {
@@ -112,101 +90,69 @@ a { color: inherit; text-decoration: none; }
   position: absolute;
   width: 6px;
   height: 6px;
-  opacity: 0;
-  transition: opacity 0.12s var(--ease), transform 0.12s var(--ease);
+  border-color: currentColor;
+  opacity: 0.55;
   pointer-events: none;
 }
 .tui-btn::before {
   top: -1px;
   left: -1px;
-  border-top: 1.5px solid var(--accent);
-  border-left: 1.5px solid var(--accent);
-  transform: translate(2px, 2px);
+  border-top: 1px solid;
+  border-left: 1px solid;
 }
 .tui-btn::after {
   bottom: -1px;
   right: -1px;
-  border-bottom: 1.5px solid var(--accent);
-  border-right: 1.5px solid var(--accent);
-  transform: translate(-2px, -2px);
+  border-bottom: 1px solid;
+  border-right: 1px solid;
 }
 .tui-btn:hover::before,
-.tui-btn:hover::after,
-.tui-btn:focus-visible::before,
-.tui-btn:focus-visible::after {
+.tui-btn:hover::after {
   opacity: 1;
-  transform: translate(0, 0);
-}
-.tui-btn:active {
-  transform: translateY(1px);
 }
 
-/* ---------------------------------------------------------------- */
-/* Sidebar collapse / mobile drawer                                  */
-/* ---------------------------------------------------------------- */
-.layout-sidebar {
-  transition: width 0.18s var(--ease), transform 0.2s var(--ease);
-}
-
-.layout-topbar {
-  display: none;
-}
-
-.sidebar-backdrop {
-  display: none;
-}
-
-.nav-label {
-  transition: opacity 0.12s var(--ease), width 0.12s var(--ease);
-  white-space: nowrap;
+/* sidebar collapse transition */
+.sidebar-collapsible {
+  transition: width 0.18s ease, padding 0.18s ease;
   overflow: hidden;
 }
 
-@media (max-width: 1024px) {
-  .layout-sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    z-index: 40;
-    transform: translateX(-100%);
-    width: min(var(--sidebar-w), 78vw) !important;
-  }
-  .layout-sidebar.is-open {
-    transform: translateX(0);
-    box-shadow: 12px 0 32px rgba(0,0,0,0.45);
-  }
-  .layout-topbar {
-    display: flex;
-  }
-  .sidebar-backdrop.is-open {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(6, 9, 12, 0.6);
-    backdrop-filter: blur(1px);
-    z-index: 35;
-  }
-  .layout-main {
-    padding-top: calc(var(--topbar-h) + 20px) !important;
-  }
+@media (max-width: 860px) {
+  .layout-shell { flex-direction: column !important; }
+  .layout-sidebar { width: 100% !important; flex-direction: row !important; overflow-x: auto; border-right: none !important; border-bottom: 1px solid var(--border); }
+  .layout-main { padding: 24px 18px !important; }
 }
 
-@media (max-width: 640px) {
-  .layout-main {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
-  }
-  .page-header-row {
-    flex-direction: column !important;
-    align-items: flex-start !important;
-    gap: 14px;
-  }
-  .spec-grid > * {
-    min-width: 100% !important;
-  }
-  .details-row {
-    flex-wrap: wrap !important;
-    gap: 18px !important;
-  }
+@media (max-width: 560px) {
+  .spec-grid { flex-direction: column !important; }
+  .job-row { flex-wrap: wrap; gap: 8px !important; }
+  .page-header-row { flex-direction: column; align-items: flex-start !important; gap: 12px; }
+}
+
+/* page-load entrance animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in-up {
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.15s; }
+.stagger-3 { animation-delay: 0.25s; }
+.stagger-4 { animation-delay: 0.35s; }
+.stagger-5 { animation-delay: 0.45s; }
+.stagger-6 { animation-delay: 0.55s; }
+
+/* ascii bar fill sweep */
+@keyframes barSweep {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.ascii-bar-fill {
+  display: inline-block;
+  animation: barSweep 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

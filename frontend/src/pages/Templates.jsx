@@ -35,10 +35,10 @@ export default function Templates() {
         eyebrow={`${templates.length} registered`}
         title="Templates"
         action={
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            <Button icon={RefreshCw} iconSpin={loading} onClick={sync} disabled={loading}>Sync from disk</Button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <Button icon={RefreshCw} onClick={sync} disabled={loading}>sync from disk</Button>
             <Link to="/templates/new">
-              <Button variant="accent" icon={Plus}>Add template</Button>
+              <Button variant="accent" icon={Plus}>new template</Button>
             </Link>
           </div>
         }
@@ -50,16 +50,16 @@ export default function Templates() {
           <Link key={t.id} to={`/templates/${t.id}`}>
             <Panel
               style={{
-                padding: "20px 22px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap",
+                padding: "20px 22px", display: "flex", justifyContent: "space-between", alignItems: "center",
                 transition: "border-color 0.12s ease",
               }}
               onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--border-strong)")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
-              <div style={{ minWidth: 0 }}>
+              <div>
                 <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{t.name}</div>
                 <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 12 }}>{t.description}</div>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <div style={{ display: "flex", gap: 6 }}>
                   {t.actions.map((a) => (
                     <span key={a} className="mono" style={{
                       fontSize: 11, color: "var(--text-secondary)", border: "1px solid var(--border)",
@@ -73,16 +73,7 @@ export default function Templates() {
           </Link>
         ))}
         {templates.length === 0 && (
-          <Panel>
-            <EmptyState>
-              No templates found in templates-storage/
-              <div style={{ marginTop: 14 }}>
-                <Link to="/templates/new">
-                  <Button variant="accent" icon={Plus}>Create your first template</Button>
-                </Link>
-              </div>
-            </EmptyState>
-          </Panel>
+          <Panel><EmptyState>No templates found in templates-storage/</EmptyState></Panel>
         )}
       </div>
     </div>

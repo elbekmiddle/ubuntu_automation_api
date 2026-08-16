@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Put } from '@nestjs/common';
 import { FilesService } from './files.service';
-import type { WriteFileDTO } from './dto/write-file.dto';
+import { WriteFileDTO } from './dto/write-file.dto';
 
 @Controller('templates/:id/files')
 export class FilesController {
