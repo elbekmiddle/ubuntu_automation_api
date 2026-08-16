@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText } from "lucide-react";
 
 const NAV = [
   { to: "/", label: "dashboard", icon: LayoutDashboard, end: true },
   { to: "/templates", label: "templates", icon: Boxes },
   { to: "/jobs", label: "jobs", icon: ListTodo },
+  { to: "/schedules", label: "schedules", icon: Clock },
+  { to: "/devices", label: "devices", icon: MonitorSmartphone },
+  { to: "/audit-logs", label: "audit log", icon: ScrollText },
 ];
 
 export default function Layout() {

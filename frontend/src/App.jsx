@@ -8,6 +8,9 @@ import TemplateDetail from "./pages/TemplateDetail";
 import FileEditor from "./pages/FileEditor";
 import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
+import Schedules from "./pages/Schedules";
+import Devices from "./pages/Devices";
+import AuditLogs from "./pages/AuditLogs";
 
 export default function App() {
   return (
@@ -20,6 +23,9 @@ export default function App() {
         <Route path="/templates/:id/files/:fileName" element={<FileEditor />} />
         <Route path="/jobs" element={<Jobs />} />
         <Route path="/jobs/:id" element={<JobDetail />} />
+        <Route path="/schedules" element={<Schedules />} />
+        <Route path="/devices" element={<Devices />} />
+        <Route path="/audit-logs" element={<AuditLogs />} />
       </Route>
     </Routes>
   );

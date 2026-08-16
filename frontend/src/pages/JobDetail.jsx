@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
 import { ChevronLeft } from "lucide-react";
 import { api } from "../lib/api";
+import { jitteredInterval } from "../lib/jitter";
 import { PageHeader, SectionLabel, Panel, StatusBadge, EmptyState } from "../components/ui";
 
 export default function JobDetail() {
@@ -9,6 +10,7 @@ export default function JobDetail() {
   const [job, setJob] = useState(null);
   const [logs, setLogs] = useState([]);
   const logsEndRef = useRef(null);
+  const pollMs = useRef(jitteredInterval(1200, 150)).current; // ~1.2s, klientlar orasida sal siljigan
 
   const load = useCallback(async () => {
     const [j, l] = await Promise.all([api.jobs.get(id), api.jobs.logs(id)]);
@@ -18,9 +20,9 @@ export default function JobDetail() {
 
   useEffect(() => {
     load();
-    const interval = setInterval(load, 1200);
+    const interval = setInterval(load, pollMs);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, pollMs]);
 
   useEffect(() => {
     logsEndRef.current?.scrollIntoView({ block: "nearest" });

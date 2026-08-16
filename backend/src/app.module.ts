@@ -1,5 +1,5 @@
-import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
@@ -8,6 +8,11 @@ import { TemplatesModule } from './templates/templates.module';
 import { JobsModule } from './jobs/jobs.module';
 import { SystemModule } from './system/system.module';
 import { FilesModule } from './files/files.module';
+import { DevicesModule } from './devices/devices.module';
+import { DeviceTrackingMiddleware } from './devices/device-tracking.middleware';
+import { AuditModule } from './audit/audit.module';
+import { AuditLogInterceptor } from './audit/audit-log.interceptor';
+import { SchedulesModule } from './schedules/schedules.module';
 
 @Module({
   imports: [
@@ -25,16 +30,27 @@ import { FilesModule } from './files/files.module';
         limit: 100, // odatiy so'rovlar uchun
       },
     ]),
+    DevicesModule,
+    AuditModule,
     TemplatesModule,
     JobsModule,
     SystemModule,
     FilesModule,
+    SchedulesModule,
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditLogInterceptor,
+    },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(DeviceTrackingMiddleware).forRoutes('*');
+  }
+}

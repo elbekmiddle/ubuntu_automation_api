@@ -12,5 +12,6 @@ import {RedisPubSubService} from "../redis/redis-pubsub.service";
   imports: [DatabaseModule, BullModule.registerQueue({ name: 'script-execution' }), TemplatesModule],
   controllers: [JobsController],
   providers: [JobsService, JobsRepository, JobsProcessor, RedisPubSubService],
+  exports: [JobsService],
 })
 export class JobsModule {}

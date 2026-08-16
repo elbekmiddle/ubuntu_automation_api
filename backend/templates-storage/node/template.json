@@ -1,0 +1,8 @@
+{
+  "slug": "node",
+  "name": "node",
+  "description": "",
+  "actions": [
+    "install"
+  ]
+}

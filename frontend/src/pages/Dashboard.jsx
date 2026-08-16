@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Cpu, MemoryStick, HardDrive, Container, RefreshCw } from "lucide-react";
 import { api } from "../lib/api";
+import { jitteredInterval } from "../lib/jitter";
 import { PageHeader, SectionLabel, Panel, StatusBadge, EmptyState, Button, AsciiBar } from "../components/ui";
 
 function fmtBytes(n) {
@@ -63,11 +64,13 @@ export default function Dashboard() {
     }
   }, []);
 
+  const pollMs = useRef(jitteredInterval(8000)).current; // ~8s, klientlar orasida sal siljigan
+
   useEffect(() => {
     load();
-    const id = setInterval(load, 8000);
+    const id = setInterval(load, pollMs);
     return () => clearInterval(id);
-  }, [load]);
+  }, [load, pollMs]);
 
   const cpu = system?.cpu, mem = system?.memory, disk = system?.disk?.[0], os = system?.os;
 

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Put, Req } from '@nestjs/common';
+import type { Request } from 'express';
 import { FilesService } from './files.service';
 import { WriteFileDTO } from './dto/write-file.dto';
 
@@ -21,7 +22,8 @@ export class FilesController {
         @Param('id') slug: string,
         @Param('fileName') fileName: string,
         @Body() body: WriteFileDTO,
+        @Req() req: Request,
     ) {
-        return this.filesService.writeFile(slug, fileName, body.content);
+        return this.filesService.writeFile(slug, fileName, body.content, req.deviceId ?? null);
     }
 }

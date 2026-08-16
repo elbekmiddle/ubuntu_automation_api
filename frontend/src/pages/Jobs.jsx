@@ -1,7 +1,8 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { RefreshCw, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { api } from "../lib/api";
+import { jitteredInterval } from "../lib/jitter";
 import { PageHeader, SectionLabel, Panel, StatusBadge, EmptyState, Button } from "../components/ui";
 
 const PAGE_SIZE = 10;
@@ -32,11 +33,13 @@ export default function Jobs() {
     }
   }, []);
 
+  const pollMs = useRef(jitteredInterval(5000)).current; // ~5s, klientlar orasida sal siljigan
+
   useEffect(() => {
     load(page);
-    const id = setInterval(() => load(page), 5000);
+    const id = setInterval(() => load(page), pollMs);
     return () => clearInterval(id);
-  }, [page, load]);
+  }, [page, load, pollMs]);
 
   const { data: jobs, total, totalPages } = result;
 

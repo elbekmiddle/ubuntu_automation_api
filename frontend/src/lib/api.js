@@ -5,18 +5,25 @@ async function request(path, opts = {}) {
     headers: { "Content-Type": "application/json" },
     ...opts,
   });
-  if (!res.ok) {
-    let message = `${res.status} ${res.statusText}`;
+
+  // Javob tanasini avval matn sifatida o'qiymiz — 204 yoki bo'sh 200 (masalan
+  // DELETE endpointlari) kelganda to'g'ridan-to'g'ri res.json() chaqirish
+  // "Unexpected end of JSON input" xatosini berardi.
+  const text = await res.text();
+  let data = null;
+  if (text) {
     try {
-      const body = await res.json();
-      if (body?.message) message = body.message;
+      data = JSON.parse(text);
     } catch {
-      /* ignore */
+      data = null;
     }
+  }
+
+  if (!res.ok) {
+    const message = data?.message || `${res.status} ${res.statusText}`;
     throw new Error(message);
   }
-  if (res.status === 204) return null;
-  return res.json();
+  return data;
 }
 
 export const api = {
@@ -43,6 +50,11 @@ export const api = {
           body: JSON.stringify({ content }),
         }),
     },
+    versions: {
+      list: (id) => request(`/templates/${id}/versions`),
+      restore: (id, version) =>
+        request(`/templates/${id}/versions/${version}/restore`, { method: "POST" }),
+    },
   },
   jobs: {
     list: (page = 1, limit = 10) => request(`/jobs?page=${page}&limit=${limit}`),
@@ -53,5 +65,26 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ templateSlug, action, args }),
       }),
+  },
+  schedules: {
+    list: () => request("/schedules"),
+    create: (templateSlug, action, cron, args = {}) =>
+      request("/schedules", {
+        method: "POST",
+        body: JSON.stringify({ templateSlug, action, cron, args }),
+      }),
+    setEnabled: (id, enabled) =>
+      request(`/schedules/${id}/enabled`, {
+        method: "PATCH",
+        body: JSON.stringify({ enabled }),
+      }),
+    remove: (id) => request(`/schedules/${id}`, { method: "DELETE" }),
+  },
+  devices: {
+    list: () => request("/devices"),
+    activeCount: () => request("/devices/active-count"),
+  },
+  auditLogs: {
+    list: (limit = 50) => request(`/audit-logs?limit=${limit}`),
   },
 };
