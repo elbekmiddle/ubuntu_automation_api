@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText } from "lucide-react";
+import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText, Settings2 } from "lucide-react";
 
 const NAV = [
   { to: "/", label: "dashboard", icon: LayoutDashboard, end: true },
@@ -9,6 +9,7 @@ const NAV = [
   { to: "/schedules", label: "schedules", icon: Clock },
   { to: "/devices", label: "devices", icon: MonitorSmartphone },
   { to: "/audit-logs", label: "audit log", icon: ScrollText },
+  { to: "/distro-configs", label: "distro configs", icon: Settings2 },
 ];
 
 export default function Layout() {
@@ -38,11 +39,10 @@ export default function Layout() {
           position: "sticky",
           top: 0,
           height: "100vh",
-          overflowY: "auto",
           alignSelf: "flex-start",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", marginBottom: 36 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", marginBottom: 36, flexShrink: 0 }}>
           {!collapsed && (
             <div>
               <div className="mono crt-glow" style={{ fontSize: 15, fontWeight: 700, color: "var(--accent)" }}>
@@ -68,7 +68,10 @@ export default function Layout() {
           </button>
         </div>
 
-        <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <nav
+          className="sidebar-nav-scroll"
+          style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0, overflowY: "auto" }}
+        >
           {NAV.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
@@ -83,6 +86,7 @@ export default function Layout() {
                 gap: 10,
                 padding: collapsed ? "9px 0" : "8px 10px",
                 fontSize: 13,
+                flexShrink: 0,
                 color: isActive ? "var(--accent)" : "var(--text-secondary)",
                 background: isActive ? "rgba(95, 211, 224, 0.08)" : "transparent",
                 border: isActive ? "1px solid var(--border-strong)" : "1px solid transparent",
@@ -96,7 +100,7 @@ export default function Layout() {
           ))}
         </nav>
 
-        <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+        <div style={{ paddingTop: 16, marginTop: 8, borderTop: "1px solid var(--border)", flexShrink: 0 }}>
           <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, justifyContent: collapsed ? "center" : "flex-start" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", display: "inline-block", flexShrink: 0 }} />
             {!collapsed && "local · v0.1.0"}

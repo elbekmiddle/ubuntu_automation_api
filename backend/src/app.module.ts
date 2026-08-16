@@ -13,6 +13,7 @@ import { DeviceTrackingMiddleware } from './devices/device-tracking.middleware';
 import { AuditModule } from './audit/audit.module';
 import { AuditLogInterceptor } from './audit/audit-log.interceptor';
 import { SchedulesModule } from './schedules/schedules.module';
+import { DistroConfigsModule } from './distro-configs/distro-configs.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { SchedulesModule } from './schedules/schedules.module';
     SystemModule,
     FilesModule,
     SchedulesModule,
+    DistroConfigsModule,
   ],
   providers: [
     {

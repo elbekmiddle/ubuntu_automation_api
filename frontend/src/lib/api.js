@@ -87,4 +87,10 @@ export const api = {
   auditLogs: {
     list: (limit = 50) => request(`/audit-logs?limit=${limit}`),
   },
+  distroConfigs: {
+    list: () => request("/distro-configs"),
+    read: (id) => request(`/distro-configs/${id}`),
+    backup: (id) => request(`/distro-configs/${id}/backup`, { method: "POST" }),
+    backups: () => request("/distro-configs/backups"),
+  },
 };

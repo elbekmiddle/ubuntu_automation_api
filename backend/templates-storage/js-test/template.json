@@ -1,0 +1,8 @@
+{
+  "slug": "js-test",
+  "name": "js_test",
+  "description": "",
+  "actions": [
+    "run"
+  ]
+}
