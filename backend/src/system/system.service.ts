@@ -24,12 +24,24 @@ export class SystemService {
     async getMemory() {
         const mem = await si.mem();
         return {
+            ram: {
+
             total: mem.total,
             used: mem.used,
             free: mem.free,
             available: mem.available,
             usedPercent: Math.round((mem.used / mem.total) * 10000) / 100,
-        };
+            },
+            swap: {
+            total: mem.swaptotal,
+            used: mem.swapused,
+            free: mem.swapfree,
+                usedPercent:
+                    mem.swaptotal > 0
+                        ? Math.round((mem.swapused / mem.swaptotal) * 10000) / 100
+                        : 0,
+        }
+        }
     }
 
     async getDisk() {

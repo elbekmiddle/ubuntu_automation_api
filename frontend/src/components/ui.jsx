@@ -21,36 +21,160 @@ export function StatusBadge({ status }) {
     </span>
   );
 }
+//
+// export function AsciiBar({ pct = 0, width = 10 }) {
+//   const safePct = Number.isFinite(pct) ? pct : 0;
+//   const [animated, setAnimated] = React.useState(0);
+//
+//   React.useEffect(() => {
+//     let raf;
+//     const start = performance.now();
+//     const duration = 700;
+//     const from = 0;
+//     const to = Math.max(0, Math.min(safePct, 100));
+//
+//     const tick = (now) => {
+//       const t = Math.min((now - start) / duration, 1);
+//       const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+//       setAnimated(from + (to - from) * eased);
+//       if (t < 1) raf = requestAnimationFrame(tick);
+//     };
+//     raf = requestAnimationFrame(tick);
+//     return () => cancelAnimationFrame(raf);
+//   }, [safePct]);
+//
+//   const filled = Math.max(0, Math.min(width, Math.round((animated / 100) * width)));
+//   const bar = "█".repeat(filled) + "░".repeat(Math.max(width - filled, 0));
+//   const color = pct > 85 ? "var(--danger)" : pct > 65 ? "var(--warning)" : "var(--accent)";
+//   return (
+//     <span className="mono ascii-bar" style={{ color }}>
+//       {bar}
+//     </span>
+//   );
+// }
 
-export function AsciiBar({ pct = 0, width = 10 }) {
-  const safePct = Number.isFinite(pct) ? pct : 0;
-  const [animated, setAnimated] = React.useState(0);
+export function AsciiBar({ pct = 0, width = 10, full = false }) {
+    const safePct = Number.isFinite(pct) ? pct : 0;
+    const [animated, setAnimated] = React.useState(0);
+    const [charCount, setCharCount] = React.useState(width);
+    const containerRef = React.useRef(null);
 
-  React.useEffect(() => {
-    let raf;
-    const start = performance.now();
-    const duration = 700;
-    const from = 0;
-    const to = Math.max(0, Math.min(safePct, 100));
+    // Full-width bar uchun container kengligini o'lchaymiz
+    React.useEffect(() => {
+        if (!full || !containerRef.current) return;
 
-    const tick = (now) => {
-      const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
-      setAnimated(from + (to - from) * eased);
-      if (t < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [safePct]);
+        const updateWidth = () => {
+            const elementWidth =
+                containerRef.current.getBoundingClientRect().width;
 
-  const filled = Math.max(0, Math.min(width, Math.round((animated / 100) * width)));
-  const bar = "█".repeat(filled) + "░".repeat(Math.max(width - filled, 0));
-  const color = pct > 85 ? "var(--danger)" : pct > 65 ? "var(--warning)" : "var(--accent)";
-  return (
-    <span className="mono ascii-bar" style={{ color }}>
-      {bar}
-    </span>
-  );
+            // monospace character taxminiy kengligi
+            const chars = Math.floor(elementWidth / 7.8);
+
+            setCharCount(Math.max(20, chars));
+        };
+
+        updateWidth();
+
+        const observer = new ResizeObserver(updateWidth);
+        observer.observe(containerRef.current);
+
+        return () => observer.disconnect();
+    }, [full]);
+
+    // Animation
+    React.useEffect(() => {
+        let raf;
+
+        const start = performance.now();
+        const duration = 700;
+
+        const from = 0;
+        const to = Math.max(
+            0,
+            Math.min(safePct, 100)
+        );
+
+        const tick = (now) => {
+            const t = Math.min(
+                (now - start) / duration,
+                1
+            );
+
+            const eased =
+                1 - Math.pow(1 - t, 3);
+
+            setAnimated(
+                from + (to - from) * eased
+            );
+
+            if (t < 1) {
+                raf = requestAnimationFrame(tick);
+            }
+        };
+
+        raf = requestAnimationFrame(tick);
+
+        return () =>
+            cancelAnimationFrame(raf);
+    }, [safePct]);
+
+    const total = full
+        ? charCount
+        : width;
+
+    const filled = Math.max(
+        0,
+        Math.min(
+            total,
+            Math.round(
+                (animated / 100) * total
+            )
+        )
+    );
+
+    const empty = Math.max(
+        total - filled,
+        0
+    );
+
+    const bar =
+        "█".repeat(filled) +
+        "░".repeat(empty);
+
+    const color =
+        safePct > 85
+            ? "var(--danger)"
+            : safePct > 65
+                ? "var(--warning)"
+                : "var(--accent)";
+
+    return (
+        <div
+            ref={containerRef}
+            style={{
+                width: "100%",
+                overflow: "hidden",
+            }}
+        >
+      <span
+          className="mono ascii-bar"
+          style={{
+              display: "block",
+              width: "100%",
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+              color,
+              fontSize: full ? 13 : undefined,
+              lineHeight: 1,
+              letterSpacing: full
+                  ? "0.4px"
+                  : undefined,
+          }}
+      >
+        {bar}
+      </span>
+        </div>
+    );
 }
 
 export function SectionLabel({ index, children }) {
