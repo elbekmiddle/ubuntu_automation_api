@@ -32,6 +32,11 @@ export default function Layout() {
           display: "flex",
           flexDirection: "column",
           padding: collapsed ? "24px 10px" : "24px 18px",
+          position: "sticky",
+          top: 0,
+          height: "100vh",
+          overflowY: "auto",
+          alignSelf: "flex-start",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "space-between", marginBottom: 36 }}>

@@ -45,7 +45,7 @@ export const api = {
     },
   },
   jobs: {
-    list: () => request("/jobs"),
+    list: (page = 1, limit = 10) => request(`/jobs?page=${page}&limit=${limit}`),
     get: (id) => request(`/jobs/${id}`),
     logs: (id) => request(`/jobs/${id}/logs`),
     create: (templateSlug, action, args = {}) =>

@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, ChevronRight } from "lucide-react";
+import { RefreshCw, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, StatusBadge, EmptyState, Button } from "../components/ui";
+
+const PAGE_SIZE = 10;
 
 function timeAgo(iso) {
   if (!iso) return "—";
@@ -16,39 +18,44 @@ function timeAgo(iso) {
 }
 
 export default function Jobs() {
-  const [jobs, setJobs] = useState([]);
+  const [page, setPage] = useState(1);
+  const [result, setResult] = useState({ data: [], total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (p) => {
     setLoading(true);
     try {
-      setJobs(await api.jobs.list());
+      const res = await api.jobs.list(p, PAGE_SIZE);
+      setResult(res);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 5000);
+    load(page);
+    const id = setInterval(() => load(page), 5000);
     return () => clearInterval(id);
-  }, [load]);
+  }, [page, load]);
+
+  const { data: jobs, total, totalPages } = result;
 
   return (
     <div>
       <PageHeader
-        eyebrow={`${jobs.length} total`}
-        title="Jobs"
-        action={<Button icon={RefreshCw} onClick={load} disabled={loading}>Refresh</Button>}
+        eyebrow={`${total} total`}
+        title="jobs"
+        action={<Button icon={RefreshCw} onClick={() => load(page)} disabled={loading}>refresh</Button>}
       />
 
-      <SectionLabel index="—">History</SectionLabel>
-      <Panel>
-        {jobs.length === 0 && <EmptyState>No jobs yet</EmptyState>}
+      <SectionLabel index="—">history</SectionLabel>
+      <Panel style={{ marginBottom: 16 }}>
+        {jobs.length === 0 && <EmptyState>no jobs yet</EmptyState>}
         {jobs.map((j, i) => (
           <Link
             key={j.id}
             to={`/jobs/${j.id}`}
+            className="mono job-row"
             style={{
               display: "flex", justifyContent: "space-between", alignItems: "center",
               padding: "15px 20px", borderTop: i === 0 ? "none" : "1px solid var(--border)",
@@ -66,6 +73,38 @@ export default function Jobs() {
           </Link>
         ))}
       </Panel>
+
+      {totalPages > 1 && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <PageBtn onClick={() => setPage(1)} disabled={page === 1}><ChevronsLeft size={13} /></PageBtn>
+          <PageBtn onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}><ChevronLeft size={13} /></PageBtn>
+
+          <span className="mono" style={{ fontSize: 12, color: "var(--text-secondary)", padding: "0 10px" }}>
+            {page} / {totalPages}
+          </span>
+
+          <PageBtn onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}><ChevronRight size={13} /></PageBtn>
+          <PageBtn onClick={() => setPage(totalPages)} disabled={page === totalPages}><ChevronsRight size={13} /></PageBtn>
+        </div>
+      )}
     </div>
+  );
+}
+
+function PageBtn({ children, disabled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="tui-btn"
+      style={{
+        width: 28, height: 28, display: "flex", alignItems: "center", justifyContent: "center",
+        background: "transparent", border: "1px solid var(--border)", color: disabled ? "var(--text-muted)" : "var(--text-secondary)",
+        borderRadius: 2, cursor: disabled ? "default" : "pointer", opacity: disabled ? 0.4 : 1,
+        transition: "border-color 0.15s ease, color 0.15s ease",
+      }}
+    >
+      {children}
+    </button>
   );
 }

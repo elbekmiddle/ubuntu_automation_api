@@ -25,9 +25,17 @@ export class JobsRepository {
         return rows[0] ?? null;
     }
 
-    async findAll(): Promise<Job[]> {
-        const { rows } = await this.db.query<Job>(`SELECT * FROM jobs ORDER BY created_at DESC LIMIT 100`);
+    async findAll(limit: number, offset: number): Promise<Job[]> {
+        const { rows } = await this.db.query<Job>(
+            `SELECT * FROM jobs ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+            [limit, offset],
+        );
         return rows;
+    }
+
+    async count(): Promise<number> {
+        const { rows } = await this.db.query<{ count: string }>(`SELECT COUNT(*)::int AS count FROM jobs`);
+        return Number(rows[0]?.count ?? 0);
     }
 
     async markRunning(id: string, pid: number) {

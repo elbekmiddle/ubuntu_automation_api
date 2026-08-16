@@ -77,8 +77,23 @@ export class JobsService {
         }
     }
 
-    findAll() {
-        return this.jobsRepo.findAll();
+    async findAll(page = 1, pageSize = 10) {
+        const safePage = Math.max(1, page);
+        const safePageSize = Math.min(Math.max(1, pageSize), 100); // 100 tadan oshmasin — DoS himoyasi
+        const offset = (safePage - 1) * safePageSize;
+
+        const [data, total] = await Promise.all([
+            this.jobsRepo.findAll(safePageSize, offset),
+            this.jobsRepo.count(),
+        ]);
+
+        return {
+            data,
+            page: safePage,
+            pageSize: safePageSize,
+            total,
+            totalPages: Math.max(1, Math.ceil(total / safePageSize)),
+        };
     }
 
     async findOne(id: string) {

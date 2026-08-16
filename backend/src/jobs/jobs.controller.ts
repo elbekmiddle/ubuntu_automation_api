@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { JobsService } from './jobs.service';
 import { CreateJobDTO } from './dto/create-job.dto';
@@ -14,8 +14,8 @@ export class JobsController {
     }
 
     @Get()
-    findAll() {
-        return this.jobsService.findAll();
+    findAll(@Query('page') page?: string, @Query('limit') limit?: string) {
+        return this.jobsService.findAll(Number(page) || 1, Number(limit) || 10);
     }
 
     @Get(':id')

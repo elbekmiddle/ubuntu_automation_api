@@ -53,9 +53,9 @@ export default function Dashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [sys, jb] = await Promise.all([api.system.overview(), api.jobs.list()]);
+      const [sys, jb] = await Promise.all([api.system.overview(), api.jobs.list(1, 6)]);
       setSystem(sys);
-      setJobs(jb);
+      setJobs(jb.data);
     } catch (e) {
       setError(e.message);
     } finally {
