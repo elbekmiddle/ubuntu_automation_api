@@ -27,11 +27,18 @@ export class JobsProcessor extends WorkerHost {
 
         return new Promise((resolve, reject) => {
             // Minimal, nazorat qilinadigan environment — host'ning to'liq env'ini (secretlar, tokenlar)
-            // script ichiga oqizib yubormaslik uchun.
+            // script ichiga oqizib yubormaslik uchun. DISPLAY/XAUTHORITY/XDG_RUNTIME_DIR ataylab
+            // qoldirilgan — bo'lmasa xrandr kabi X11/Wayland bilan ishlaydigan scriptlar
+            // "Can't open display" xatosi bilan yiqiladi.
             const safeEnv = {
                 PATH: process.env.PATH,
                 HOME: process.env.HOME,
                 LANG: process.env.LANG ?? 'C.UTF-8',
+                DISPLAY: process.env.DISPLAY,
+                XAUTHORITY: process.env.XAUTHORITY,
+                XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR,
+                WAYLAND_DISPLAY: process.env.WAYLAND_DISPLAY,
+                DBUS_SESSION_BUS_ADDRESS: process.env.DBUS_SESSION_BUS_ADDRESS,
             };
 
             const child = spawn('bash', [scriptPath], {

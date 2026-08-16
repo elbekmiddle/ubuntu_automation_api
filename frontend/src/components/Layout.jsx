@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
 const NAV = [
@@ -9,6 +9,7 @@ const NAV = [
 ];
 
 export default function Layout() {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth < 860;
@@ -45,11 +46,15 @@ export default function Layout() {
           <button
             onClick={() => setCollapsed((c) => !c)}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="tui-btn"
             style={{
               background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)",
               width: 26, height: 26, display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", borderRadius: 2, flexShrink: 0,
+              transition: "border-color 0.15s ease, color 0.15s ease",
             }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--border-strong)"; e.currentTarget.style.color = "var(--accent)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--border)"; e.currentTarget.style.color = "var(--text-secondary)"; }}
           >
             {collapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
           </button>
@@ -62,7 +67,7 @@ export default function Layout() {
               to={to}
               end={end}
               title={label}
-              className="mono"
+              className="mono tui-btn nav-link"
               style={({ isActive }) => ({
                 display: "flex",
                 alignItems: "center",
@@ -74,6 +79,7 @@ export default function Layout() {
                 background: isActive ? "rgba(95, 211, 224, 0.08)" : "transparent",
                 border: isActive ? "1px solid var(--border-strong)" : "1px solid transparent",
                 borderRadius: 2,
+                transition: "border-color 0.2s ease, background 0.2s ease, color 0.2s ease",
               })}
             >
               <Icon size={14} />
@@ -90,8 +96,8 @@ export default function Layout() {
         </div>
       </aside>
 
-      <main className="layout-main" style={{ flex: 1, padding: "36px 44px", minWidth: 0, background: "var(--bg)" }}>
-        <div style={{ maxWidth: 980, margin: "0 auto" }}>
+      <main className="layout-main" style={{ flex: 1, padding: "36px 44px", minWidth: 0, background: "var(--bg)", transition: "background 0.3s ease" }}>
+        <div key={location.pathname} className="route-transition" style={{ maxWidth: 980, margin: "0 auto" }}>
           <Outlet />
         </div>
       </main>

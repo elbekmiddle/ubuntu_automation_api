@@ -23,6 +23,7 @@ export function StatusBadge({ status }) {
 }
 
 export function AsciiBar({ pct = 0, width = 10 }) {
+  const safePct = Number.isFinite(pct) ? pct : 0;
   const [animated, setAnimated] = React.useState(0);
 
   React.useEffect(() => {
@@ -30,7 +31,7 @@ export function AsciiBar({ pct = 0, width = 10 }) {
     const start = performance.now();
     const duration = 700;
     const from = 0;
-    const to = Math.min(pct, 100);
+    const to = Math.max(0, Math.min(safePct, 100));
 
     const tick = (now) => {
       const t = Math.min((now - start) / duration, 1);
@@ -40,9 +41,9 @@ export function AsciiBar({ pct = 0, width = 10 }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [pct]);
+  }, [safePct]);
 
-  const filled = Math.round((animated / 100) * width);
+  const filled = Math.max(0, Math.min(width, Math.round((animated / 100) * width)));
   const bar = "█".repeat(filled) + "░".repeat(Math.max(width - filled, 0));
   const color = pct > 85 ? "var(--danger)" : pct > 65 ? "var(--warning)" : "var(--accent)";
   return (
