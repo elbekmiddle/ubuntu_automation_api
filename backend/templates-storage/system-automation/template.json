@@ -1,0 +1,9 @@
+{
+  "slug": "system-automation",
+  "name": "System Automation",
+  "description": "Ubuntu system information and environment inspection actions",
+  "actions": [
+    "get-os-info",
+    "get-memory"
+  ]
+}
