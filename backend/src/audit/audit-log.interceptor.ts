@@ -12,10 +12,12 @@ function guessResourceType(path: string): string | undefined {
     if (path.startsWith('/templates')) {
         if (path.includes('/files')) return 'file';
         if (path.includes('/versions')) return 'template-version';
+        if (path.includes('/visibility')) return 'template-visibility';
         return 'template';
     }
     if (path.startsWith('/schedules')) return 'schedule';
     if (path.startsWith('/devices')) return 'device';
+    if (path.startsWith('/auth')) return 'auth';
     return undefined;
 }
 
@@ -46,6 +48,7 @@ export class AuditLogInterceptor implements NestInterceptor {
                     this.auditLog
                         .record({
                             deviceId: req.deviceId ?? null,
+                            userId: req.userId ?? null,
                             ip: req.clientIp ?? req.ip ?? 'unknown',
                             method: req.method,
                             path: req.route?.path ?? req.path,
@@ -62,6 +65,7 @@ export class AuditLogInterceptor implements NestInterceptor {
                     this.auditLog
                         .record({
                             deviceId: req.deviceId ?? null,
+                            userId: req.userId ?? null,
                             ip: req.clientIp ?? req.ip ?? 'unknown',
                             method: req.method,
                             path: req.route?.path ?? req.path,

@@ -1,0 +1,20 @@
+{
+  "name": "screenctl",
+  "version": "0.1.0",
+  "description": "Screenctl CLI — Ubuntu Automation Platform uchun terminal client",
+  "bin": {
+    "screenctl": "./bin/screenctl.js"
+  },
+  "type": "commonjs",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node bin/screenctl.js"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "commander": "^12.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -5,9 +5,10 @@ import { DatabaseModule } from '../database/database.module';
 import { TemplatesRepository } from './templates.repository';
 import { TemplateVersionsService } from './template-versions.service';
 import { TemplateVersionsController } from './template-versions.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AuthModule],
   providers: [
     TemplatesService,
     TemplatesRepository,

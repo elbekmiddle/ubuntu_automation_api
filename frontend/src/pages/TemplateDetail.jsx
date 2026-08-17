@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { Play, Loader2, FileCode, ChevronLeft, ChevronRight } from "lucide-react";
+import { Play, Loader2, FileCode, ChevronLeft, ChevronRight, Globe, Lock } from "lucide-react";
 import { api } from "../lib/api";
-import { PageHeader, SectionLabel, Panel, EmptyState } from "../components/ui";
+import { PageHeader, SectionLabel, Panel, EmptyState, Button } from "../components/ui";
 
 export default function TemplateDetail() {
   const { id } = useParams();
@@ -10,6 +10,7 @@ export default function TemplateDetail() {
   const [template, setTemplate] = useState(null);
   const [files, setFiles] = useState([]);
   const [runningAction, setRunningAction] = useState(null);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
   const [error, setError] = useState(null);
 
   const load = useCallback(async () => {
@@ -36,6 +37,18 @@ export default function TemplateDetail() {
     }
   };
 
+  const toggleVisibility = async () => {
+    setTogglingVisibility(true);
+    try {
+      const updated = await api.templates.setVisibility(template.id, !template.is_public);
+      setTemplate(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setTogglingVisibility(false);
+    }
+  };
+
   if (error) {
     return <Panel style={{ padding: 20, color: "var(--danger)", fontSize: 13 }}>{error}</Panel>;
   }
@@ -47,7 +60,21 @@ export default function TemplateDetail() {
         <ChevronLeft size={14} /> Templates
       </Link>
 
-      <PageHeader eyebrow={template.slug} title={template.name} />
+      <PageHeader
+        eyebrow={template.slug}
+        title={template.name}
+        action={
+          <Button
+            icon={togglingVisibility ? Loader2 : template.is_public ? Globe : Lock}
+            iconSpin={togglingVisibility}
+            onClick={toggleVisibility}
+            disabled={togglingVisibility}
+            variant={template.is_public ? "accent" : "default"}
+          >
+            {template.is_public ? "public" : "private"}
+          </Button>
+        }
+      />
 
       <div style={{ fontSize: 13.5, color: "var(--text-secondary)", marginBottom: 36, maxWidth: 640 }}>
         {template.description}

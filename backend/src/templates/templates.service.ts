@@ -45,6 +45,7 @@ export class TemplatesService implements OnModuleInit {
                     description: manifest.description ?? null,
                     path: templatePath,
                     actions: manifest.actions,
+                    isPublic: true, // diskdan kelgan built-in templatelar hammaga ochiq bo'ladi
                 });
                 this.logger.log(`Synced template: ${manifest.slug}`);
             } catch (err) {
@@ -56,6 +57,23 @@ export class TemplatesService implements OnModuleInit {
     async findAll() {
         const { rows } = await this.repo.findAll();
         return rows;
+    }
+
+    async findPublic(query?: string) {
+        return this.repo.findPublic(query);
+    }
+
+    async setVisibility(templateId: string, isPublic: boolean, requesterId: string | null) {
+        const template = await this.findById(templateId);
+        if (template.owner_id && requesterId && template.owner_id !== requesterId) {
+            throw new BadRequestException({
+                code: TEMPLATE_ERROR_CODES.NOT_OWNER,
+                message: TEMPLATE_ERRORS[TEMPLATE_ERROR_CODES.NOT_OWNER],
+            });
+        }
+        const updated = await this.repo.setVisibility(templateId, isPublic);
+        this.logger.log(`Template "${template.slug}" visibility set to ${isPublic ? 'public' : 'private'}`);
+        return updated;
     }
 
     async findById(Id: string) {
@@ -78,7 +96,7 @@ export class TemplatesService implements OnModuleInit {
         }
         return rows[0];
     }
-    async createTemplate(dto: CreateTemplateDTO) {
+    async createTemplate(dto: CreateTemplateDTO, ownerId: string | null = null) {
         // 1. Slug validation
         if (!NAME_RE.test(dto.slug)) {
             throw new BadRequestException({
@@ -208,6 +226,8 @@ export class TemplatesService implements OnModuleInit {
                 description: dto.description?.trim() ?? null,
                 path: templatePath,
                 actions: manifest.actions,
+                ownerId,
+                isPublic: dto.isPublic ?? false,
             });
 
             this.logger.log(

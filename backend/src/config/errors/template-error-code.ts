@@ -8,6 +8,7 @@ export const TEMPLATE_ERROR_CODES = {
     ALREADY_EXISTS: 'TEMPLATE_ALREADY_EXISTS',
     CREATE_FAILED: 'TEMPLATE_CREATE_FAILED',
     NOT_FOUND: 'TEMPLATE_NOT_FOUND',
+    NOT_OWNER: 'TEMPLATE_NOT_OWNER',
 } as const;
 
 export type TemplateErrorCode =
@@ -40,4 +41,7 @@ export const TEMPLATE_ERRORS = {
 
     [TEMPLATE_ERROR_CODES.NOT_FOUND]:
         'Template topilmadi',
+
+    [TEMPLATE_ERROR_CODES.NOT_OWNER]:
+        'Bu templateni faqat egasi tahrirlashi mumkin',
 } as const;

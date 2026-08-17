@@ -3,6 +3,7 @@ import {
   ArrayMaxSize,
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsOptional,
   IsString,
   Matches,
@@ -48,4 +49,8 @@ export class CreateTemplateDTO {
   @ValidateNested({ each: true })
   @Type(() => CreateActionDto)
   actions: CreateActionDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  isPublic?: boolean;
 }

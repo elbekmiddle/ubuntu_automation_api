@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { ChevronLeft, Plus, Trash2, Loader2 } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Loader2, Globe } from "lucide-react";
 import { api } from "../lib/api";
+import { useAuth } from "../lib/auth";
 import { PageHeader, Panel, Button } from "../components/ui";
 
 const SLUG_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
@@ -17,10 +18,12 @@ function slugify(v) {
 
 export default function NewTemplate() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [slug, setSlug] = useState("");
   const [slugTouched, setSlugTouched] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [isPublic, setIsPublic] = useState(false);
   const [actions, setActions] = useState([{ name: "install", script: DEFAULT_SCRIPT }]);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -63,7 +66,7 @@ export default function NewTemplate() {
     setError(null);
     setSubmitting(true);
     try {
-      const template = await api.templates.create({ slug, name, description, actions });
+      const template = await api.templates.create({ slug, name, description, actions, isPublic });
       navigate(`/templates/${template.id}`);
     } catch (e) {
       setError(e.message);
@@ -104,6 +107,24 @@ export default function NewTemplate() {
           <Field label="description" last>
             <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Reverse proxy setup" />
           </Field>
+        </Panel>
+
+        <Panel style={{ padding: "16px 22px", marginBottom: 24 }}>
+          <label className="mono" style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 13 }}>
+            <input
+              type="checkbox"
+              checked={isPublic}
+              onChange={(e) => setIsPublic(e.target.checked)}
+              style={{ width: 15, height: 15, accentColor: "var(--accent)" }}
+            />
+            <Globe size={14} color="var(--text-secondary)" />
+            <span>Jamoatchilikka ochiq qilish (public)</span>
+          </label>
+          <div className="eyebrow" style={{ marginTop: 8, marginLeft: 25 }}>
+            {user
+              ? "Boshqa foydalanuvchilar bu templateni \"community\" bo'limidan topib ishlata oladi"
+              : "Anonim yaratilgan public templatelarni keyinchalik faqat sync orqali boshqarish mumkin — tavsiya: avval login qiling"}
+          </div>
         </Panel>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

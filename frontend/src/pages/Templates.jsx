@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight, RefreshCw, Plus } from "lucide-react";
+import { ArrowRight, RefreshCw, Plus, Globe, Lock } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button } from "../components/ui";
 
@@ -35,7 +35,10 @@ export default function Templates() {
         eyebrow={`${templates.length} registered`}
         title="Templates"
         action={
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <Link to="/templates/public">
+              <Button icon={Globe}>community</Button>
+            </Link>
             <Button icon={RefreshCw} onClick={sync} disabled={loading}>sync from disk</Button>
             <Link to="/templates/new">
               <Button variant="accent" icon={Plus}>new template</Button>
@@ -57,7 +60,18 @@ export default function Templates() {
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--border)")}
             >
               <div>
-                <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{t.name}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                  <span style={{ fontSize: 15, fontWeight: 500 }}>{t.name}</span>
+                  {t.is_public ? (
+                    <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, color: "var(--accent)", border: "1px solid var(--border-strong)", padding: "1px 7px", borderRadius: 2 }}>
+                      <Globe size={10} /> public
+                    </span>
+                  ) : (
+                    <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10.5, color: "var(--text-muted)", border: "1px solid var(--border)", padding: "1px 7px", borderRadius: 2 }}>
+                      <Lock size={10} /> private
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize: 12.5, color: "var(--text-secondary)", marginBottom: 12 }}>{t.description}</div>
                 <div style={{ display: "flex", gap: 6 }}>
                   {t.actions.map((a) => (

@@ -3,6 +3,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+
 import { DatabaseModule } from './database/database.module';
 import { TemplatesModule } from './templates/templates.module';
 import { JobsModule } from './jobs/jobs.module';
@@ -18,20 +19,30 @@ import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: [
+        '.env.development',
+        '.env',
+      ],
+    }),
+
     DatabaseModule,
+
     BullModule.forRoot({
       connection: {
         host: process.env.REDIS_HOST ?? '127.0.0.1',
         port: Number(process.env.REDIS_PORT ?? '6379'),
       },
     }),
+
     ThrottlerModule.forRoot([
       {
-        ttl: 60000, // 1 daqiqa
-        limit: 100, // odatiy so'rovlar uchun
+        ttl: 60000,
+        limit: 100,
       },
     ]),
+
     DevicesModule,
     AuditModule,
     AuthModule,
@@ -42,6 +53,7 @@ import { AuthModule } from './auth/auth.module';
     SchedulesModule,
     DistroConfigsModule,
   ],
+
   providers: [
     {
       provide: APP_GUARD,

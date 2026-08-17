@@ -74,7 +74,7 @@ export class AuthService {
 
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) {
-            throw new UnauthorizedException('Email yoki parol noto`to`g`ri');
+            throw new UnauthorizedException('Email yoki parol noto\'g\'ri');
         }
 
         const tokens = await this.issueTokens(user, deviceId);
@@ -85,7 +85,7 @@ export class AuthService {
         const tokenHash = hashToken(refreshToken);
         const stored = await this.refreshTokensRepo.findValidByHash(tokenHash);
         if (!stored) {
-            throw new UnauthorizedException('Refresh token yaroqsiz yoki muddati o`tgan');
+            throw new UnauthorizedException('Refresh token yaroqsiz yoki muddati o\'tgan');
         }
 
         const user = await this.usersRepo.findById(stored.user_id);

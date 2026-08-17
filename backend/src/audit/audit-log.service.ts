@@ -3,6 +3,7 @@ import { DatabaseService } from '../database/database.service';
 
 export interface AuditLogEntry {
     deviceId: string | null;
+    userId?: string | null;
     ip: string;
     method: string;
     path: string;
@@ -19,10 +20,11 @@ export class AuditLogService {
 
     async record(entry: AuditLogEntry) {
         await this.db.query(
-            `INSERT INTO audit_logs (device_id, ip, method, path, action, resource_type, resource_id, status_code, metadata)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+            `INSERT INTO audit_logs (device_id, user_id, ip, method, path, action, resource_type, resource_id, status_code, metadata)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
             [
                 entry.deviceId,
+                entry.userId ?? null,
                 entry.ip,
                 entry.method,
                 entry.path,

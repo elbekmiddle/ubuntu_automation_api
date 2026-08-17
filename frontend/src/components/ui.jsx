@@ -81,7 +81,7 @@ export function Panel({ children, style, ...rest }) {
   );
 }
 
-export function Button({ children, variant = "default", icon: Icon, ...rest }) {
+export function Button({ children, variant = "default", icon: Icon, iconSpin = false, ...rest }) {
   const variants = {
     default: { background: "transparent", color: "var(--text)", border: "1px solid var(--border)" },
     accent: { background: "var(--accent)", color: "var(--accent-ink)", border: "1px solid var(--accent)" },
@@ -106,7 +106,7 @@ export function Button({ children, variant = "default", icon: Icon, ...rest }) {
         ...rest.style,
       }}
     >
-      {Icon && <Icon size={13} />}
+      {Icon && <Icon size={13} className={iconSpin ? "spin" : ""} />}
       {children}
     </button>
   );

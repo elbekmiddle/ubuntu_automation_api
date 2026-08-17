@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText } from "lucide-react";
+import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText, Globe, LogIn, LogOut, User } from "lucide-react";
+import { useAuth } from "../lib/auth";
 
 const NAV = [
   { to: "/", label: "dashboard", icon: LayoutDashboard, end: true },
   { to: "/templates", label: "templates", icon: Boxes },
+  { to: "/templates/public", label: "community", icon: Globe },
   { to: "/jobs", label: "jobs", icon: ListTodo },
   { to: "/schedules", label: "schedules", icon: Clock },
   { to: "/devices", label: "devices", icon: MonitorSmartphone },
@@ -13,6 +15,8 @@ const NAV = [
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, loading, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(() => {
     if (typeof window === "undefined") return false;
     return window.innerWidth < 860;
@@ -97,6 +101,47 @@ export default function Layout() {
         </nav>
 
         <div style={{ marginTop: "auto", paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+          {!loading && (
+            <div style={{ marginBottom: 12 }}>
+              {user ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  {!collapsed && (
+                    <div className="mono" style={{ fontSize: 11.5, color: "var(--text-secondary)", display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
+                      <User size={12} style={{ flexShrink: 0 }} />
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{user.email}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => logout()}
+                    title="Logout"
+                    className="mono tui-btn"
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8,
+                      background: "transparent", border: "1px solid var(--border)", color: "var(--text-secondary)",
+                      padding: collapsed ? "7px 0" : "7px 10px", fontSize: 11.5, cursor: "pointer", borderRadius: 2, width: "100%",
+                    }}
+                  >
+                    <LogOut size={13} />
+                    {!collapsed && "logout"}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => navigate("/login")}
+                  title="Login"
+                  className="mono tui-btn"
+                  style={{
+                    display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8,
+                    background: "transparent", border: "1px solid var(--border-strong)", color: "var(--accent)",
+                    padding: collapsed ? "7px 0" : "7px 10px", fontSize: 11.5, cursor: "pointer", borderRadius: 2, width: "100%",
+                  }}
+                >
+                  <LogIn size={13} />
+                  {!collapsed && "login"}
+                </button>
+              )}
+            </div>
+          )}
           <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)", display: "flex", alignItems: "center", gap: 6, justifyContent: collapsed ? "center" : "flex-start" }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--success)", display: "inline-block", flexShrink: 0 }} />
             {!collapsed && "local · v0.1.0"}
