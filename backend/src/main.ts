@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import helmet from 'helmet';
 import * as express from 'express';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
+import { AuthModule } from './auth/auth.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -28,12 +29,20 @@ async function bootstrap() {
       '[security] API_KEY .env da o\'rnatilmagan — barcha endpointlar hech qanday autentifikatsiyasiz ochiq.',
     );
   }
+  if (!process.env.JWT_SECRET) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      '[security] JWT_SECRET .env da o\'rnatilmagan — /auth endpointlari ishlaydi, lekin tokenlar ' +
+        'oldindan aytish mumkin bo\'lgan (insecure) kalit bilan imzolanadi. Production\'da albatta ' +
+        'qo\'ying: openssl rand -hex 32',
+    );
+  }
 
   const port = Number(process.env.PORT) || 3000;
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'X-API-Key'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'X-API-Key', 'Authorization'],
   });
 
   await app.listen(port);

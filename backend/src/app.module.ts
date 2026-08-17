@@ -14,6 +14,7 @@ import { AuditModule } from './audit/audit.module';
 import { AuditLogInterceptor } from './audit/audit-log.interceptor';
 import { SchedulesModule } from './schedules/schedules.module';
 import { DistroConfigsModule } from './distro-configs/distro-configs.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { DistroConfigsModule } from './distro-configs/distro-configs.module';
     ]),
     DevicesModule,
     AuditModule,
+    AuthModule,
     TemplatesModule,
     JobsModule,
     SystemModule,

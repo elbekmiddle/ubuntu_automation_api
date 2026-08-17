@@ -11,7 +11,6 @@ import JobDetail from "./pages/JobDetail";
 import Schedules from "./pages/Schedules";
 import Devices from "./pages/Devices";
 import AuditLogs from "./pages/AuditLogs";
-import DistroConfigs from "./pages/DistroConfigs";
 
 export default function App() {
   return (
@@ -27,7 +26,6 @@ export default function App() {
         <Route path="/schedules" element={<Schedules />} />
         <Route path="/devices" element={<Devices />} />
         <Route path="/audit-logs" element={<AuditLogs />} />
-        <Route path="/distro-configs" element={<DistroConfigs />} />
       </Route>
     </Routes>
   );
