@@ -17,7 +17,8 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "migration:run": "for file in src/database/migrations/*.sql; do echo \"Running $file\"; docker exec -i backend-postgres-1 psql -U automation -d automation_platform < \"$file\" || exit 1; done"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",
