@@ -12,6 +12,8 @@ import {
     HardDrive,
     Container,
     RefreshCw,
+    Monitor,
+    Terminal,
 } from "lucide-react";
 
 import { api } from "../lib/api";
@@ -157,10 +159,8 @@ function Spec({
             className={className}
             style={{
                 padding: 20,
-
                 flex: "1 1 190px",
                 minWidth: 190,
-
                 boxSizing: "border-box",
             }}
         >
@@ -245,10 +245,8 @@ function DockerSpec({
             className={className}
             style={{
                 padding: 20,
-
                 flex: "0 0 100%",
                 width: "100%",
-
                 boxSizing: "border-box",
             }}
         >
@@ -375,6 +373,90 @@ function DockerSpec({
                         : "offline"}
                 </span>
             </div>
+        </Panel>
+    );
+}
+
+/* =========================================================
+   SYSTEM SPEC
+   ========================================================= */
+
+function SystemSpec({
+                        icon: Icon,
+                        label,
+                        value,
+                        sub,
+                        flex = "1 1 220px",
+                        className,
+                    }) {
+    return (
+        <Panel
+            className={className}
+            style={{
+                padding: "17px 20px",
+                flex,
+                minWidth: 200,
+                boxSizing: "border-box",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 9,
+                    marginBottom: 13,
+                }}
+            >
+                <div
+                    style={{
+                        width: 28,
+                        height: 28,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1px solid var(--border)",
+                        background:
+                            "var(--background-secondary)",
+                        boxSizing: "border-box",
+                    }}
+                >
+                    <Icon
+                        size={14}
+                        color="var(--text-secondary)"
+                    />
+                </div>
+
+                <span className="eyebrow">
+                    {label}
+                </span>
+            </div>
+
+            <div
+                className="mono crt-glow"
+                style={{
+                    fontSize: 15,
+                    fontWeight: 600,
+                    lineHeight: 1.3,
+                    color: "var(--text)",
+                    wordBreak: "break-word",
+                }}
+            >
+                {value}
+            </div>
+
+            {sub && (
+                <div
+                    className="mono"
+                    style={{
+                        marginTop: 6,
+                        fontSize: 11,
+                        lineHeight: 1.4,
+                        color: "var(--text-muted)",
+                    }}
+                >
+                    {sub}
+                </div>
+            )}
         </Panel>
     );
 }
@@ -631,58 +713,53 @@ export default function Dashboard() {
                         system
                     </SectionLabel>
 
-                    <Panel
+                    <div
                         style={{
-                            padding:
-                                "16px 20px",
-                            marginBottom: 36,
                             display: "flex",
-                            gap: 32,
-                            flexWrap:
-                                "wrap",
+                            gap: 12,
+                            flexWrap: "wrap",
+                            marginBottom: 36,
+                            width: "100%",
                         }}
-                        className="mono"
                     >
-                        <div>
-                            <span
-                                style={{
-                                    color:
-                                        "var(--text-muted)",
-                                }}
-                            >
-                                distro{" "}
-                            </span>
+                        {/* DISTRO */}
+                        <SystemSpec
+                            icon={Monitor}
+                            label="distro"
+                            value={
+                                os.distro
+                            }
+                            sub={
+                                os.release
+                            }
+                            flex="1 1 250px"
+                            className="fade-in-up stagger-6"
+                        />
 
-                            {os.distro}{" "}
-                            {os.release}
-                        </div>
+                        {/* ARCHITECTURE */}
+                        <SystemSpec
+                            icon={Cpu}
+                            label="architecture"
+                            value={
+                                os.arch
+                            }
+                            sub="system architecture"
+                            flex="1 1 210px"
+                            className="fade-in-up stagger-6"
+                        />
 
-                        <div>
-                            <span
-                                style={{
-                                    color:
-                                        "var(--text-muted)",
-                                }}
-                            >
-                                arch{" "}
-                            </span>
-
-                            {os.arch}
-                        </div>
-
-                        <div>
-                            <span
-                                style={{
-                                    color:
-                                        "var(--text-muted)",
-                                }}
-                            >
-                                kernel{" "}
-                            </span>
-
-                            {os.kernel}
-                        </div>
-                    </Panel>
+                        {/* KERNEL */}
+                        <SystemSpec
+                            icon={Terminal}
+                            label="kernel"
+                            value={
+                                os.kernel
+                            }
+                            sub="linux kernel"
+                            flex="2 1 300px"
+                            className="fade-in-up stagger-6"
+                        />
+                    </div>
                 </div>
             )}
 
