@@ -3,6 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from './public.decorator';
+import { AUTH_ERROR_CODES, AUTH_ERRORS } from '../config/errors/auth-error-code';
 
 declare module 'express-serve-static-core' {
     interface Request {
@@ -30,7 +31,10 @@ export class JwtAuthGuard implements CanActivate {
         const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
         if (!token) {
-            throw new UnauthorizedException('Authorization header (Bearer token) yo\'q');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.MISSING_TOKEN,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.MISSING_TOKEN],
+            });
         }
 
         try {
@@ -39,7 +43,10 @@ export class JwtAuthGuard implements CanActivate {
             req.userEmail = payload.email;
             return true;
         } catch {
-            throw new UnauthorizedException('Access token yaroqsiz yoki muddati o\'tgan');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.INVALID_ACCESS_TOKEN,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.INVALID_ACCESS_TOKEN],
+            });
         }
     }
 }

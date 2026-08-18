@@ -16,6 +16,7 @@ import { AuditLogInterceptor } from './audit/audit-log.interceptor';
 import { SchedulesModule } from './schedules/schedules.module';
 import { DistroConfigsModule } from './distro-configs/distro-configs.module';
 import { AuthModule } from './auth/auth.module';
+import { AppsModule } from './apps/apps.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { AuthModule } from './auth/auth.module';
     FilesModule,
     SchedulesModule,
     DistroConfigsModule,
+    AppsModule,
   ],
 
   providers: [

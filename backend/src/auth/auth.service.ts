@@ -4,14 +4,14 @@ import {
     Logger,
     UnauthorizedException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { UsersRepository, User } from './users.repository';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
+import { AUTH_ERROR_CODES, AUTH_ERRORS } from '../config/errors/auth-error-code';
 
-const ACCESS_TOKEN_TTL_SECONDS = Number(process.env.JWT_ACCESS_TTL_SECONDS ?? 15 * 60); // 15 daqiqa
-const REFRESH_TOKEN_TTL_MS = Number(process.env.JWT_REFRESH_TTL_MS ?? 30 * 24 * 60 * 60 * 1000); // 30 kun
 const BCRYPT_ROUNDS = 12;
 
 export interface AuthTokens {
@@ -43,17 +43,24 @@ function generateOpaqueToken(): string {
 @Injectable()
 export class AuthService {
     private readonly logger = new Logger(AuthService.name);
+    private readonly refreshTtlMs: number;
 
     constructor(
         private readonly usersRepo: UsersRepository,
         private readonly refreshTokensRepo: RefreshTokensRepository,
         private readonly jwtService: JwtService,
-    ) {}
+        private readonly config: ConfigService,
+    ) {
+        this.refreshTtlMs = Number(this.config.get('JWT_REFRESH_TTL_MS') ?? 30 * 24 * 60 * 60 * 1000);
+    }
 
     async register(email: string, password: string, name: string | null, deviceId: string | null): Promise<{ user: PublicUser; tokens: AuthTokens }> {
         const existing = await this.usersRepo.findByEmail(email);
         if (existing) {
-            throw new BadRequestException('Bu email bilan foydalanuvchi allaqachon mavjud');
+            throw new BadRequestException({
+                code: AUTH_ERROR_CODES.EMAIL_ALREADY_EXISTS,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.EMAIL_ALREADY_EXISTS],
+            });
         }
 
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -66,15 +73,21 @@ export class AuthService {
 
     async login(email: string, password: string, deviceId: string | null): Promise<{ user: PublicUser; tokens: AuthTokens }> {
         const user = await this.usersRepo.findByEmail(email);
-        // Doim bir xil xabar — "email topilmadi" va "parol xato"ni ajratib bermaymiz,
+        // Doim bir xil xabar/kod — "email topilmadi" va "parol xato"ni ajratib bermaymiz,
         // aks holda tashqi odam qaysi email'lar ro'yxatdan o'tganini bilib oladi.
         if (!user) {
-            throw new UnauthorizedException('Email yoki parol noto\'g\'ri');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.INVALID_CREDENTIALS],
+            });
         }
 
         const valid = await bcrypt.compare(password, user.password_hash);
         if (!valid) {
-            throw new UnauthorizedException('Email yoki parol noto\'g\'ri');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.INVALID_CREDENTIALS,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.INVALID_CREDENTIALS],
+            });
         }
 
         const tokens = await this.issueTokens(user, deviceId);
@@ -85,12 +98,18 @@ export class AuthService {
         const tokenHash = hashToken(refreshToken);
         const stored = await this.refreshTokensRepo.findValidByHash(tokenHash);
         if (!stored) {
-            throw new UnauthorizedException('Refresh token yaroqsiz yoki muddati o\'tgan');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.INVALID_REFRESH_TOKEN,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.INVALID_REFRESH_TOKEN],
+            });
         }
 
         const user = await this.usersRepo.findById(stored.user_id);
         if (!user) {
-            throw new UnauthorizedException('Foydalanuvchi topilmadi');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.USER_NOT_FOUND],
+            });
         }
 
         // Rotation: eski refresh token darhol bekor qilinadi, yangisi chiqariladi —
@@ -110,19 +129,21 @@ export class AuthService {
     async me(userId: string): Promise<PublicUser> {
         const user = await this.usersRepo.findById(userId);
         if (!user) {
-            throw new UnauthorizedException('Foydalanuvchi topilmadi');
+            throw new UnauthorizedException({
+                code: AUTH_ERROR_CODES.USER_NOT_FOUND,
+                message: AUTH_ERRORS[AUTH_ERROR_CODES.USER_NOT_FOUND],
+            });
         }
         return toPublicUser(user);
     }
 
     private async issueTokens(user: User, deviceId: string | null): Promise<AuthTokens> {
-        const accessToken = await this.jwtService.signAsync(
-            { sub: user.id, email: user.email },
-            { expiresIn: ACCESS_TOKEN_TTL_SECONDS },
-        );
+        // expiresIn JwtModule.registerAsync ichida (auth.module.ts) allaqachon
+        // sozlangan — bu yerda qayta ko'rsatish shart emas.
+        const accessToken = await this.jwtService.signAsync({ sub: user.id, email: user.email });
 
         const refreshToken = generateOpaqueToken();
-        const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS);
+        const expiresAt = new Date(Date.now() + this.refreshTtlMs);
         await this.refreshTokensRepo.create(user.id, hashToken(refreshToken), expiresAt, deviceId);
 
         return { accessToken, refreshToken };

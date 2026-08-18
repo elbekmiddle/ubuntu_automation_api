@@ -29,14 +29,10 @@ async function bootstrap() {
       '[security] API_KEY .env da o\'rnatilmagan — barcha endpointlar hech qanday autentifikatsiyasiz ochiq.',
     );
   }
-  if (!process.env.JWT_SECRET) {
-    // eslint-disable-next-line no-console
-    console.warn(
-      '[security] JWT_SECRET .env da o\'rnatilmagan — /auth endpointlari ishlaydi, lekin tokenlar ' +
-        'oldindan aytish mumkin bo\'lgan (insecure) kalit bilan imzolanadi. Production\'da albatta ' +
-        'qo\'ying: openssl rand -hex 32',
-    );
-  }
+  // Eslatma: JWT_SECRET yo'qligi haqidagi xato bu yerga yetib kelmaydi —
+  // AuthModule (JwtModule.registerAsync -> ConfigService.getOrThrow) uni
+  // NestFactory.create() bosqichida, hali shu qatorlarga yetib kelmasdan,
+  // aniq xato bilan to'xtatadi. .env.example'ga qarang.
 
   const port = Number(process.env.PORT) || 3000;
   app.enableCors({

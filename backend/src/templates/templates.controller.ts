@@ -4,6 +4,7 @@ import {TemplatesService}             from "./templates.service";
 import {CreateTemplateDTO}       from "./dto/create-template.dto";
 import {SetVisibilityDTO} from "./dto/set-visibility.dto";
 import {OptionalJwtGuard} from "../auth/optional-jwt.guard";
+import {JwtAuthGuard} from "../auth/jwt-auth.guard";
 import {CurrentUser} from "../auth/current-user.decorator";
 
 @Controller('templates')
@@ -26,13 +27,15 @@ export class TemplatesController {
 
     @Get(':slug')
     findOne(@Param('slug') slug: string) {
-        return this.templatesService.findById(slug);
+        return this.templatesService.findBySlug(slug);
     }
 
-    @UseGuards(OptionalJwtGuard)
+    // Template yaratish uchun endi ro'yxatdan o'tgan (login qilgan) foydalanuvchi
+    // bo'lish MAJBURIY — anonim template yaratib bo'lmaydi.
+    @UseGuards(JwtAuthGuard)
     @Post()
-    create(@Body() body: CreateTemplateDTO, @CurrentUser() userId?: string) {
-        return this.templatesService.createTemplate(body, userId ?? null);
+    create(@Body() body: CreateTemplateDTO, @CurrentUser() userId: string) {
+        return this.templatesService.createTemplate(body, userId);
     }
 
     @Post('sync')
