@@ -161,6 +161,12 @@ export const api = {
     list: () => request("/devices"),
     activeCount: () => request("/devices/active-count"),
   },
+  apps: {
+    list: () => request("/apps"),
+    get: (id) => request(`/apps/${id}`),
+    create: (name) => request("/apps", { method: "POST", body: JSON.stringify({ name }) }),
+    remove: (id) => request(`/apps/${id}`, { method: "DELETE" }),
+  },
   auditLogs: {
     list: (limit = 50) => request(`/audit-logs?limit=${limit}`),
   },

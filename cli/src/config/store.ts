@@ -12,9 +12,18 @@ export interface Credentials {
     userEmail: string;
 }
 
+export interface AgentEntry {
+    appId: string;
+    name: string;
+    registrationToken: string;
+    apiUrl: string;
+    createdAt: string;
+}
+
 const SCREENCTL_DIR = join(homedir(), '.screenctl');
 const CONFIG_PATH = join(SCREENCTL_DIR, 'config.json');
 const CREDENTIALS_PATH = join(SCREENCTL_DIR, 'credentials.json');
+const AGENTS_PATH = join(SCREENCTL_DIR, 'agents.json');
 
 const DEFAULT_CONFIG: Config = {
     apiUrl: process.env.SCREENCTL_API_URL ?? 'http://localhost:3000',
@@ -74,4 +83,42 @@ export function clearCredentials(): void {
 
 export function isLoggedIn(): boolean {
     return readCredentials() !== null;
+}
+
+/**
+ * Har bir "app create" / "app connect" natijasida registration token shu
+ * yerga (0600) saqlanadi — shunda `screenctl agent start --app-id X` uchun
+ * tokenni qo'lda qayta kiritish shart bo'lmaydi.
+ */
+function readAgents(): Record<string, AgentEntry> {
+    ensureDir();
+    if (!existsSync(AGENTS_PATH)) return {};
+    try {
+        return JSON.parse(readFileSync(AGENTS_PATH, 'utf-8')) as Record<string, AgentEntry>;
+    } catch {
+        return {};
+    }
+}
+
+export function saveAgent(entry: AgentEntry): void {
+    ensureDir();
+    const all = readAgents();
+    all[entry.appId] = entry;
+    writeFileSync(AGENTS_PATH, JSON.stringify(all, null, 2), { encoding: 'utf-8', mode: 0o600 });
+    chmodSync(AGENTS_PATH, 0o600);
+}
+
+export function readAgent(appId: string): AgentEntry | null {
+    return readAgents()[appId] ?? null;
+}
+
+export function listAgents(): AgentEntry[] {
+    return Object.values(readAgents());
+}
+
+export function removeAgent(appId: string): void {
+    ensureDir();
+    const all = readAgents();
+    delete all[appId];
+    writeFileSync(AGENTS_PATH, JSON.stringify(all, null, 2), { encoding: 'utf-8', mode: 0o600 });
 }

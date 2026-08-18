@@ -11,6 +11,23 @@ function generateRegistrationToken(): string {
     return `app_reg_${crypto.randomBytes(32).toString('hex')}`;
 }
 
+// Agent har ~20s'da heartbeat yuboradi (bunga qarang: cli/src/agent/run.ts).
+// Agar jarayon to'satdan o'chib qolsa (masalan `kill -9`), WebSocket
+// "disconnect" hodisasi baribir keladi va status='offline' bo'ladi, lekin
+// tarmoq uzilib qolgan holatlar uchun ham qo'shimcha himoya sifatida —
+// oxirgi heartbeatdan shu vaqtdan ko'p o'tgan bo'lsa, "online" bo'lsa ham
+// frontendga offline deb ko'rsatamiz.
+const STALE_AFTER_MS = 60_000;
+
+function withComputedStatus<T extends { status: string; last_seen_at: Date | null }>(app: T) {
+    const isRecentlyAlive =
+        app.last_seen_at != null && Date.now() - new Date(app.last_seen_at).getTime() < STALE_AFTER_MS;
+    return {
+        ...app,
+        status: app.status === 'online' && !isRecentlyAlive ? 'offline' : app.status,
+    };
+}
+
 @Injectable()
 export class AppsService {
     private readonly logger = new Logger(AppsService.name);
@@ -28,7 +45,8 @@ export class AppsService {
     }
 
     async findAllForUser(userId: string) {
-        return this.repo.findAllForUser(userId);
+        const apps = await this.repo.findAllForUser(userId);
+        return apps.map(withComputedStatus);
     }
 
     async findOneForUser(userId: string, id: string) {
@@ -39,7 +57,7 @@ export class AppsService {
                 message: `${APP_ERRORS[APP_ERROR_CODES.NOT_FOUND]}: "${id}"`,
             });
         }
-        return app;
+        return withComputedStatus(app);
     }
 
     async remove(userId: string, id: string) {

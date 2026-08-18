@@ -5,7 +5,8 @@ import { loginCommand } from './commands/login.js';
 import { registerCommand } from './commands/register.js';
 import { logoutCommand } from './commands/logout.js';
 import { whoamiCommand } from './commands/whoami.js';
-import { appsListCommand, appCreateCommand } from './commands/apps.js';
+import { appsListCommand, appCreateCommand, appRemoveCommand } from './commands/apps.js';
+import { agentStartCommand, agentListCommand } from './commands/agent.js';
 import { templatesListCommand, templatesPublicCommand } from './commands/templates.js';
 import { jobsListCommand } from './commands/jobs.js';
 import { runCommand } from './commands/run.js';
@@ -49,14 +50,30 @@ function buildProgram(): Command {
     program.command('whoami').description('Show the currently logged-in user')
         .action(async () => whoamiCommand());
 
-    const app = program.command('app').description('Manage applications (registered machines)');
-    app.command('create').description('Register a new application')
-        .option('-n, --name <name>').action(async (opts) => appCreateCommand(opts));
-    app.command('list').description('List your applications')
+    const app = program.command('app').description('Manage connected devices (this machine included)');
+    app.command('create').description('Connect this computer to Screenctl (alias: connect)')
+        .option('-n, --name <name>')
+        .option('-y, --yes', 'Skip prompts — start the agent immediately')
+        .action(async (opts) => appCreateCommand(opts));
+    app.command('connect').description('Connect this computer to Screenctl')
+        .option('-n, --name <name>')
+        .option('-y, --yes', 'Skip prompts — start the agent immediately')
+        .action(async (opts) => appCreateCommand(opts));
+    app.command('list').description('List your connected devices')
         .action(async () => appsListCommand());
+    app.command('remove <id>').description('Disconnect a device')
+        .action(async (id: string) => appRemoveCommand(id));
 
     program.command('apps').description('Alias for "app list"')
         .action(async () => appsListCommand());
+
+    const agent = program.command('agent').description('Run the Screenctl Agent on this machine');
+    agent.command('start').description('Start the agent (connects this machine\'s stats to Screenctl)')
+        .option('--app-id <id>')
+        .option('--token <token>')
+        .action(async (opts) => agentStartCommand(opts));
+    agent.command('list').description('List agents saved on this machine')
+        .action(async () => agentListCommand());
 
     const template = program.command('template').description('Manage templates');
     template.command('list').description('List your templates')

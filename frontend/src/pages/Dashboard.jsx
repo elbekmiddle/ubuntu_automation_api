@@ -14,6 +14,7 @@ import {
     RefreshCw,
     Monitor,
     Terminal,
+    MonitorSmartphone,
 } from "lucide-react";
 
 import { api } from "../lib/api";
@@ -462,6 +463,130 @@ function SystemSpec({
 }
 
 /* =========================================================
+   CONNECTED DEVICE CARD
+   ========================================================= */
+
+function MiniBar({ pct = 0 }) {
+    const safePct = Math.min(100, Math.max(0, Number(pct) || 0));
+    let color = "var(--success)";
+    if (safePct >= 85) color = "var(--danger)";
+    else if (safePct >= 70) color = "var(--warning)";
+
+    return (
+        <div
+            style={{
+                width: "100%",
+                height: 5,
+                background: "var(--border)",
+                overflow: "hidden",
+            }}
+        >
+            <div
+                style={{
+                    width: `${safePct}%`,
+                    height: "100%",
+                    background: color,
+                    transition: "width 0.3s ease",
+                }}
+            />
+        </div>
+    );
+}
+
+function MiniStat({ label, pct }) {
+    return (
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
+            <div
+                className="mono"
+                style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    fontSize: 10.5,
+                    color: "var(--text-muted)",
+                    marginBottom: 4,
+                }}
+            >
+                <span>{label}</span>
+                <span>{pct != null ? `${Math.round(pct)}%` : "—"}</span>
+            </div>
+            <MiniBar pct={pct} />
+        </div>
+    );
+}
+
+function DeviceCard({ app, className }) {
+    const online = app.status === "online";
+    const metrics = app.last_metrics ?? {};
+    const cpuPct = metrics.cpu;
+    const memPct = metrics.memory?.usedPercent;
+    const diskPct = metrics.disk?.usedPercent;
+
+    return (
+        <Panel
+            className={className}
+            style={{
+                padding: 18,
+                flex: "1 1 220px",
+                minWidth: 220,
+                boxSizing: "border-box",
+            }}
+        >
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    marginBottom: 10,
+                }}
+            >
+                <div
+                    className="mono"
+                    style={{
+                        fontSize: 14,
+                        fontWeight: 600,
+                        color: "var(--text)",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                    }}
+                >
+                    {app.name}
+                </div>
+                <StatusBadge status={online ? "online" : "offline"} />
+            </div>
+
+            <div
+                className="mono"
+                style={{
+                    fontSize: 11,
+                    color: "var(--text-muted)",
+                    marginBottom: 14,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                }}
+            >
+                {app.hostname
+                    ? `${app.hostname} · ${app.os_platform ?? ""} ${app.os_release ?? ""}`.trim()
+                    : "waiting for agent to register..."}
+            </div>
+
+            {online ? (
+                <div style={{ display: "flex", gap: 10 }}>
+                    <MiniStat label="cpu" pct={cpuPct} />
+                    <MiniStat label="mem" pct={memPct} />
+                    <MiniStat label="disk" pct={diskPct} />
+                </div>
+            ) : (
+                <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    last seen {timeAgo(app.last_seen_at)}
+                </div>
+            )}
+        </Panel>
+    );
+}
+
+/* =========================================================
    DASHBOARD
    ========================================================= */
 
@@ -470,6 +595,9 @@ export default function Dashboard() {
         useState(null);
 
     const [jobs, setJobs] =
+        useState([]);
+
+    const [apps, setApps] =
         useState([]);
 
     const [loading, setLoading] =
@@ -484,14 +612,16 @@ export default function Dashboard() {
             setError(null);
 
             try {
-                const [sys, jb] =
+                const [sys, jb, ap] =
                     await Promise.all([
                         api.system.overview(),
                         api.jobs.list(1, 6),
+                        api.apps.list().catch(() => []),
                     ]);
 
                 setSystem(sys);
                 setJobs(jb.data);
+                setApps(ap);
             } catch (e) {
                 setError(e.message);
             } finally {
@@ -704,12 +834,50 @@ export default function Dashboard() {
             </div>
 
             {/* =================================================
+                CONNECTED DEVICES
+               ================================================= */}
+
+            <div className="fade-in-up stagger-6">
+                <SectionLabel index="02">
+                    connected devices ({apps.length})
+                </SectionLabel>
+
+                {apps.length === 0 ? (
+                    <Panel style={{ marginBottom: 36 }}>
+                        <EmptyState>
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                                <MonitorSmartphone size={18} color="var(--text-muted)" />
+                                <span>no devices connected yet</span>
+                                <span className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                    run <code>screenctl app connect</code> on a machine to add it here
+                                </span>
+                            </div>
+                        </EmptyState>
+                    </Panel>
+                ) : (
+                    <div
+                        style={{
+                            display: "flex",
+                            gap: 12,
+                            flexWrap: "wrap",
+                            marginBottom: 36,
+                            width: "100%",
+                        }}
+                    >
+                        {apps.map((a) => (
+                            <DeviceCard key={a.id} app={a} className="fade-in-up" />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* =================================================
                 SYSTEM
                ================================================= */}
 
             {os && (
                 <div className="fade-in-up stagger-6">
-                    <SectionLabel index="02">
+                    <SectionLabel index="03">
                         system
                     </SectionLabel>
 
@@ -770,7 +938,7 @@ export default function Dashboard() {
             {system?.docker
                 ?.containers?.length > 0 && (
                 <div className="fade-in-up stagger-6">
-                    <SectionLabel index="03">
+                    <SectionLabel index="04">
                         running containers
                     </SectionLabel>
 
@@ -847,7 +1015,7 @@ export default function Dashboard() {
                ================================================= */}
 
             <div className="fade-in-up stagger-6">
-                <SectionLabel index="04">
+                <SectionLabel index="05">
                     recent jobs
                 </SectionLabel>
 

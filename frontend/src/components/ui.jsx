@@ -6,6 +6,8 @@ export const STATUS = {
   running: { color: "var(--info)", icon: Loader2, label: "running" },
   success: { color: "var(--success)", icon: CheckCircle2, label: "success" },
   failed: { color: "var(--danger)", icon: XCircle, label: "failed" },
+  online: { color: "var(--success)", icon: CheckCircle2, label: "online" },
+  offline: { color: "var(--text-muted)", icon: Circle, label: "offline" },
 };
 
 export function StatusBadge({ status }) {

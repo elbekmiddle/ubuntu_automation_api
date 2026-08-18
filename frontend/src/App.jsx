@@ -12,6 +12,7 @@ import Jobs from "./pages/Jobs";
 import JobDetail from "./pages/JobDetail";
 import Schedules from "./pages/Schedules";
 import Devices from "./pages/Devices";
+import Apps from "./pages/Apps";
 import AuditLogs from "./pages/AuditLogs";
 import Login from "./pages/Login";
 
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/schedules" element={<Schedules />} />
           <Route path="/devices" element={<Devices />} />
+          <Route path="/apps" element={<Apps />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/login" element={<Login />} />
         </Route>
