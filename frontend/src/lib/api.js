@@ -101,58 +101,58 @@ export const api = {
     },
     me: () => request("/auth/me"),
   },
-  apps: {
-    list: () => request("/apps"),
+      apps: {
+        list: () => request("/apps"),
 
-    get: (id) =>
-        request(`/apps/${id}`),
+        get: (id) =>
+            request(`/apps/${id}`),
 
-    create: (name) =>
-        request("/apps", {
-          method: "POST",
-          body: JSON.stringify({ name }),
-        }),
+        create: (name) =>
+            request("/apps", {
+              method: "POST",
+              body: JSON.stringify({ name }),
+            }),
 
-    remove: (id) =>
-        request(`/apps/${id}`, {
-          method: "DELETE",
-        }),
+        remove: (id) =>
+            request(`/apps/${id}`, {
+              method: "DELETE",
+            }),
 
-    system: {
-      overview: (id) =>
-          request(`/apps/${id}/system`),
+        system: {
+          overview: (_id) =>
+              request("/system"),
 
-      cpu: (id) =>
-          request(`/apps/${id}/system/cpu`),
+          cpu: (_id) =>
+              request("/system/cpu"),
 
-      memory: (id) =>
-          request(`/apps/${id}/system/memory`),
+          memory: (_id) =>
+              request("/system/memory"),
 
-      disk: (id) =>
-          request(`/apps/${id}/system/disk`),
+          disk: (_id) =>
+              request("/system/disk"),
 
-      network: (id) =>
-          request(`/apps/${id}/system/network`),
+          network: (_id) =>
+              request("/system/network"),
 
-      processes: (id) =>
-          request(`/apps/${id}/system/processes`),
+          processes: (_id) =>
+              request("/system/processes"),
 
-      process: (id, pid) =>
-          request(`/apps/${id}/system/processes/${pid}`),
+          process: (_id, pid) =>
+              request(`/system/processes/${pid}`),
 
-      docker: (id) =>
-          request(`/apps/${id}/system/docker`),
+          docker: (_id) =>
+              request("/system/docker"),
 
-      os: (id) =>
-          request(`/apps/${id}/system/os`),
+          os: (_id) =>
+              request("/system/os"),
 
-      ports: (id) =>
-          request(`/apps/${id}/system/ports`),
+          ports: (_id) =>
+              request("/system/ports"),
 
-      uptime: (id) =>
-          request(`/apps/${id}/system/uptime`),
-    },
-  },
+          uptime: (_id) =>
+              request("/system/uptime"),
+        },
+      },
   templates: {
     list: () => request("/templates"),
     get: async (id) => {
