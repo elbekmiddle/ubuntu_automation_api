@@ -63,7 +63,8 @@ export class SystemService {
                 usedPercent:
                     mem.swaptotal > 0
                         ? Math.round(
-                        (mem.swapused / mem.swaptotal) *
+                        (mem.swapused /
+                            mem.swaptotal) *
                         10000,
                     ) / 100
                         : 0,
@@ -107,21 +108,122 @@ export class SystemService {
     async getProcesses() {
         const processes = await si.processes();
 
+        const topCpu = [...processes.list]
+            .sort((a, b) => b.cpu - a.cpu)
+            .slice(0, 10)
+            .map((process) => ({
+                pid: process.pid,
+                name: process.name,
+                cpu: process.cpu,
+                memoryPercent: process.mem,
+            }));
+
+        const topMemory = [...processes.list]
+            .sort((a, b) => b.mem - a.mem)
+            .slice(0, 10)
+            .map((process) => ({
+                pid: process.pid,
+                name: process.name,
+                cpu: process.cpu,
+                memoryPercent: process.mem,
+            }));
+
         return {
             all: processes.all,
             running: processes.running,
             blocked: processes.blocked,
-
-            top: [...processes.list]
-                .sort((a, b) => b.cpu - a.cpu)
-                .slice(0, 10)
-                .map((process) => ({
-                    pid: process.pid,
-                    name: process.name,
-                    cpu: process.cpu,
-                    mem: process.mem,
-                })),
+            topCpu,
+            topMemory,
         };
+    }
+
+    /**
+     * Detailed information about a single process
+     *
+     * Linux:
+     * ps -p PID -o ...
+     */
+    async getProcess(pid: number) {
+        if (!Number.isInteger(pid) || pid <= 0) {
+            throw new HttpException(
+                {
+                    code: 'INVALID_PID',
+                    message: 'Invalid process ID',
+                },
+                HttpStatus.BAD_REQUEST,
+            );
+        }
+
+        try {
+            const { stdout } = await execAsync(
+                `ps -p ${pid} -o pid=,user=,stat=,etime=,lstart=,comm=,args=`,
+            );
+
+            const line = stdout.trim();
+
+            if (!line) {
+                throw new HttpException(
+                    {
+                        code: 'PROCESS_NOT_FOUND',
+                        message: `Process ${pid} not found`,
+                    },
+                    HttpStatus.NOT_FOUND,
+                );
+            }
+
+            /*
+             * Example:
+             *
+             * 203485 arch1tect Sl+ 01:32:14 Mon Aug 19 14:20:10 2026 node /usr/bin/node ...
+             *
+             * First 5 fields are predictable.
+             */
+            const parts = line.split(/\s+/);
+
+            const processPid = Number(parts[0]);
+            const user = parts[1];
+            const status = parts[2];
+            const uptime = parts[3];
+
+            const startedAt = parts
+                .slice(4, 9)
+                .join(' ');
+
+            const command = parts[9] || null;
+
+            const args =
+                parts.slice(10).join(' ') || null;
+
+            return {
+                pid: processPid,
+                user,
+                status,
+                uptime,
+                startedAt,
+                command,
+                args,
+            };
+        } catch (error) {
+            if (error instanceof HttpException) {
+                throw error;
+            }
+
+            this.logger.error(
+                `Failed to fetch process ${pid}`,
+                error instanceof Error
+                    ? error.stack
+                    : String(error),
+            );
+
+            throw new HttpException(
+                {
+                    code: 'PROCESS_FETCH_FAILED',
+                    message:
+                        `Failed to fetch process ${pid}`,
+                },
+                HttpStatus.INTERNAL_SERVER_ERROR,
+            );
+        }
     }
 
     /**
@@ -180,7 +282,8 @@ export class SystemService {
      * Listening ports
      */
     async getPorts() {
-        const connections = await si.networkConnections();
+        const connections =
+            await si.networkConnections();
 
         return connections
             .filter(
@@ -191,11 +294,15 @@ export class SystemService {
                 protocol: connection.protocol,
                 address: connection.localAddress,
                 port: Number(connection.localPort),
-                process: connection.process || null,
-                pid: connection.pid || null,
+                process:
+                    connection.process || null,
+                pid:
+                    connection.pid || null,
                 state: connection.state,
             }))
-            .sort((a, b) => a.port - b.port);
+            .sort(
+                (a, b) => a.port - b.port,
+            );
     }
 
     /**
@@ -203,12 +310,18 @@ export class SystemService {
      */
     async getUptime() {
         const time = await si.time();
-        const bootTime = time.current - time.uptime * 1000;
+
+        const bootTime =
+            time.current -
+            time.uptime * 1000;
 
         return {
             uptime: time.uptime,
             current: time.current,
-            bootTime: new Date(bootTime).toISOString(),
+            bootTime:
+                new Date(
+                    bootTime,
+                ).toISOString(),
         };
     }
 
@@ -260,10 +373,13 @@ export class SystemService {
 
             throw new HttpException(
                 {
-                    code: SYSTEM_ERROR_CODES.FETCH_FAILED,
+                    code:
+                    SYSTEM_ERROR_CODES
+                        .FETCH_FAILED,
                     message:
                         SYSTEM_ERRORS[
-                            SYSTEM_ERROR_CODES.FETCH_FAILED
+                            SYSTEM_ERROR_CODES
+                                .FETCH_FAILED
                             ],
                 },
                 HttpStatus.INTERNAL_SERVER_ERROR,

@@ -1,4 +1,9 @@
-import { Controller, Get } from '@nestjs/common';
+import {
+    Controller,
+    Get,
+    Param,
+} from '@nestjs/common';
+
 import { SystemService } from './system.service';
 
 @Controller('system')
@@ -35,6 +40,13 @@ export class SystemController {
     @Get('processes')
     getProcesses() {
         return this.systemService.getProcesses();
+    }
+
+    @Get('processes/:pid')
+    getProcess(@Param('pid') pid: string) {
+        return this.systemService.getProcess(
+            Number(pid),
+        );
     }
 
     @Get('docker')
