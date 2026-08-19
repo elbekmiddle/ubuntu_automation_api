@@ -68,4 +68,5 @@ export class SystemController {
     getUptime() {
         return this.systemService.getUptime();
     }
+
 }
