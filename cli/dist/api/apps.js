@@ -3,8 +3,8 @@ export async function listApps() {
     const { data } = await api.get('/apps');
     return data;
 }
-export async function createApp(name) {
-    const { data } = await api.post('/apps', { name });
+export async function createApp(name, permission = 'read_write') {
+    const { data } = await api.post('/apps', { name, permission });
     return data;
 }
 export async function getApp(id) {

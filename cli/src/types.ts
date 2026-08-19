@@ -72,11 +72,14 @@ export interface JobListResponse {
     totalPages: number;
 }
 
+export type AppPermission = 'read_only' | 'read_write';
+
 export interface App {
     id: string;
     user_id: string;
     name: string;
     status: 'offline' | 'online';
+    permission: AppPermission;
     last_seen_at: string | null;
     hostname: string | null;
     os_platform: string | null;

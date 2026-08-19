@@ -34,10 +34,10 @@ export class AppsService {
 
     constructor(private readonly repo: AppsRepository) {}
 
-    async create(userId: string, name: string) {
+    async create(userId: string, name: string, permission: 'read_only' | 'read_write' = 'read_write') {
         const registrationToken = generateRegistrationToken();
-        const app = await this.repo.create(userId, name, hashToken(registrationToken));
-        this.logger.log(`Created app "${name}" for user ${userId}`);
+        const app = await this.repo.create(userId, name, hashToken(registrationToken), permission);
+        this.logger.log(`Created app "${name}" (${permission}) for user ${userId}`);
 
         // registrationToken faqat SHU javobda qaytadi — DB'da faqat hash saqlanadi,
         // shuning uchun keyinroq qayta ko'rsatib bo'lmaydi.

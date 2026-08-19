@@ -1,12 +1,15 @@
 import chalk from 'chalk';
-import { input, confirm } from '@inquirer/prompts';
-import { listApps, createApp, removeApp } from '../api/apps.js';
+import { select, input, confirm } from '@inquirer/prompts';
+import { listApps, createApp, removeApp, getApp } from '../api/apps.js';
 import { isLoggedIn, saveAgent, readConfig } from '../config/store.js';
 import { printError, requireLogin } from '../utils/errors.js';
 import { getStaticSystemInfo } from '../agent/collect.js';
 import { runAgent } from '../agent/run.js';
 function statusDot(app) {
     return app.status === 'online' ? chalk.green('●') : chalk.dim('○');
+}
+function permissionLabel(permission) {
+    return permission === 'read_only' ? 'Read Only' : 'Read & Write';
 }
 function timeAgo(iso) {
     if (!iso)
@@ -36,7 +39,7 @@ export async function appsListCommand() {
                 console.log(chalk.dim(`  ${app.hostname}`));
             if (app.os_platform)
                 console.log(chalk.dim(`  ${app.os_platform} ${app.os_release ?? ''}`.trim()));
-            console.log(chalk.dim(`  ${app.status} · last seen ${timeAgo(app.last_seen_at)}`));
+            console.log(chalk.dim(`  ${app.status} · ${permissionLabel(app.permission)} · last seen ${timeAgo(app.last_seen_at)}`));
             console.log();
         }
     }
@@ -48,9 +51,10 @@ export async function appsListCommand() {
 /**
  * Doc'dagi "Connect this computer" flow'i:
  *  1. Device nomi so'raladi (default = shu mashinaning hostname'i)
- *  2. Backendda app + registration token yaratiladi
- *  3. Token shu mashinada (~/.screenctl/agents.json) saqlanadi
- *  4. Foydalanuvchidan agentni darhol ishga tushirish so'raladi
+ *  2. Permission tanlanadi (Read & Write / Read Only)
+ *  3. Backendda app + registration token yaratiladi
+ *  4. Token shu mashinada (~/.screenctl/agents.json) saqlanadi
+ *  5. Foydalanuvchidan agentni darhol ishga tushirish so'raladi
  */
 export async function appCreateCommand(opts = {}) {
     if (!isLoggedIn())
@@ -63,10 +67,19 @@ export async function appCreateCommand(opts = {}) {
     console.log(`  ${chalk.green('✓')} Architecture   ${detected.arch}`);
     console.log(`  ${chalk.green('✓')} CPU            ${detected.cores} cores\n`);
     const name = opts.name ?? (await input({ message: 'Device name:', default: detected.hostname }));
+    const permission = opts.permission ??
+        (await select({
+            message: 'Permission',
+            choices: [
+                { name: 'Read & Write', value: 'read_write', description: 'Monitoring + template/action ijrosi' },
+                { name: 'Read Only', value: 'read_only', description: 'Faqat monitoring — ijro yo\'q' },
+            ],
+        }));
     try {
-        const { app, registrationToken } = await createApp(name);
+        const { app, registrationToken } = await createApp(name, permission);
         console.log(chalk.green(`\n✓ Device created: ${app.name}`));
         console.log(chalk.dim(`  Device ID: ${app.id}`));
+        console.log(chalk.dim(`  Permission: ${permissionLabel(app.permission)}`));
         const { apiUrl } = readConfig();
         saveAgent({
             appId: app.id,
@@ -126,5 +139,98 @@ export async function appRemoveCommand(id) {
     catch (err) {
         printError(err);
         process.exitCode = 1;
+    }
+}
+/**
+ * Bitta device tafsiloti — doc'dagi "Overview" ekrani. Processes/Ports/
+ * Docker/Services/Network bo'limlari hali yo'q (agentda collector'lar
+ * yozilmagan) — shuning uchun hozircha faqat mavjud maydonlar ko'rsatiladi.
+ */
+async function deviceDetail(app) {
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        console.clear();
+        console.log(chalk.bold(`\n${app.name}\n`));
+        console.log(`${statusDot(app)} ${app.status === 'online' ? 'ONLINE' : 'OFFLINE'}\n`);
+        if (app.os_platform)
+            console.log(`${app.os_platform} ${app.os_release ?? ''}`.trim());
+        console.log(`Permission     ${permissionLabel(app.permission)}`);
+        console.log(`Last heartbeat ${timeAgo(app.last_seen_at)}`);
+        const metrics = app.last_metrics;
+        if (metrics?.cpu != null) {
+            console.log();
+            console.log(`CPU            ${metrics.cpu}%`);
+            if (metrics.memory?.usedPercent != null)
+                console.log(`Memory         ${metrics.memory.usedPercent}%`);
+            if (metrics.disk?.usedPercent != null)
+                console.log(`Disk           ${metrics.disk.usedPercent}%`);
+        }
+        console.log();
+        const choice = await select({
+            message: 'Actions',
+            choices: [
+                { name: 'Refresh', value: 'refresh' },
+                { name: 'Disconnect', value: 'disconnect' },
+                { name: '← Back', value: 'back' },
+            ],
+        });
+        if (choice === 'refresh') {
+            try {
+                app = await getApp(app.id);
+            }
+            catch (err) {
+                printError(err);
+            }
+            continue;
+        }
+        if (choice === 'disconnect') {
+            const sure = await confirm({ message: `Disconnect "${app.name}"?`, default: false });
+            if (sure) {
+                await appRemoveCommand(app.id);
+                return;
+            }
+            continue;
+        }
+        return; // back
+    }
+}
+/**
+ * Doc'dagi "Devices" ekrani: `+ Connect this computer` birinchi qatorda,
+ * keyin mavjud device'lar status bilan. Device tanlansa — detail ekrani.
+ */
+export async function devicesMenu() {
+    if (!isLoggedIn())
+        return requireLogin();
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+        let apps;
+        try {
+            apps = await listApps();
+        }
+        catch (err) {
+            printError(err);
+            return;
+        }
+        console.log(chalk.bold(`\nDevices (${apps.length})\n`));
+        const choice = await select({
+            message: 'Devices',
+            choices: [
+                { name: '+ Connect this computer', value: '__connect__' },
+                ...apps.map((a) => ({
+                    name: `${a.status === 'online' ? '●' : '○'} ${a.name}${a.hostname ? `  (${a.hostname})` : ''}`,
+                    value: a.id,
+                })),
+                { name: '← Back', value: '__back__' },
+            ],
+        });
+        if (choice === '__back__')
+            return;
+        if (choice === '__connect__') {
+            await appCreateCommand();
+            continue;
+        }
+        const selected = apps.find((a) => a.id === choice);
+        if (selected)
+            await deviceDetail(selected);
     }
 }

@@ -7,7 +7,7 @@ import { loginCommand } from '../commands/login.js';
 import { registerCommand } from '../commands/register.js';
 import { runCommand } from '../commands/run.js';
 import { templatesListCommand, templatesPublicCommand } from '../commands/templates.js';
-import { appsListCommand } from '../commands/apps.js';
+import { devicesMenu } from '../commands/apps.js';
 import { jobsListCommand } from '../commands/jobs.js';
 import { accountMenu } from '../commands/account.js';
 
@@ -109,8 +109,7 @@ async function homeMenu(): Promise<'continue' | ExitSignal> {
             await pause();
             break;
         case 'devices':
-            await appsListCommand();
-            await pause();
+            await devicesMenu();
             break;
         case 'jobs':
             await jobsListCommand();

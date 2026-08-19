@@ -7,6 +7,7 @@ export interface AppRow {
     name: string;
     registration_token_hash: string;
     status: 'offline' | 'online';
+    permission: 'read_only' | 'read_write';
     last_seen_at: Date | null;
     hostname: string | null;
     os_platform: string | null;
@@ -20,11 +21,16 @@ export interface AppRow {
 export class AppsRepository {
     constructor(private readonly db: DatabaseService) {}
 
-    async create(userId: string, name: string, registrationTokenHash: string): Promise<AppRow> {
+    async create(
+        userId: string,
+        name: string,
+        registrationTokenHash: string,
+        permission: 'read_only' | 'read_write' = 'read_write',
+    ): Promise<AppRow> {
         const { rows } = await this.db.query<AppRow>(
-            `INSERT INTO apps (user_id, name, registration_token_hash)
-             VALUES ($1, $2, $3) RETURNING *`,
-            [userId, name, registrationTokenHash],
+            `INSERT INTO apps (user_id, name, registration_token_hash, permission)
+             VALUES ($1, $2, $3, $4) RETURNING *`,
+            [userId, name, registrationTokenHash, permission],
         );
         return rows[0];
     }
