@@ -275,4 +275,11 @@ export class TemplatesService implements OnModuleInit {
             );
         }
     }
+
+    /** Agentga yuborish uchun bitta action scriptining matnini o'qiydi. */
+    async getActionScript(templateId: string, action: string): Promise<string> {
+        const template = await this.findById(templateId);
+        const scriptPath = path.join(template.path, `${action}.sh`);
+        return fs.readFile(scriptPath, 'utf-8');
+    }
 }

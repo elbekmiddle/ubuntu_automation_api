@@ -6,12 +6,12 @@ import { Job } from './jobs.types';
 export class JobsRepository {
     constructor(private readonly db: DatabaseService) {}
 
-    async create(templateId: string, action: string, args: Record<string, unknown>): Promise<Job> {
+    async create(templateId: string, action: string, args: Record<string, unknown>, appId: string | null = null): Promise<Job> {
         const { rows } = await this.db.query<Job>(
-            `INSERT INTO jobs (template_id, action, args, status)
-       VALUES ($1, $2, $3, 'pending')
+            `INSERT INTO jobs (template_id, action, args, status, app_id)
+       VALUES ($1, $2, $3, 'pending', $4)
        RETURNING *`,
-            [templateId, action, JSON.stringify(args)],
+            [templateId, action, JSON.stringify(args), appId],
         );
         return rows[0];
     }
@@ -42,6 +42,14 @@ export class JobsRepository {
         await this.db.query(
             `UPDATE jobs SET status = 'running', pid = $2, started_at = now() WHERE id = $1`,
             [id, pid],
+        );
+    }
+
+    /** Masofaviy (agent orqali) job — local pid yo'q, faqat statusni yangilaymiz. */
+    async markDispatched(id: string) {
+        await this.db.query(
+            `UPDATE jobs SET status = 'running', started_at = now() WHERE id = $1`,
+            [id],
         );
     }
 

@@ -34,16 +34,12 @@ import {
    ========================================================= */
 
 function fmtBytes(n) {
-    const value = Number(n);
-
-    if (!Number.isFinite(value) || value < 0) {
-        return "—";
-    }
+    if (n == null) return "—";
 
     const units = ["B", "KB", "MB", "GB", "TB"];
 
     let i = 0;
-    let v = value;
+    let v = n;
 
     while (
         v >= 1024 &&
@@ -56,40 +52,12 @@ function fmtBytes(n) {
     return `${v.toFixed(1)} ${units[i]}`;
 }
 
-function fmtPercent(value, digits = 0) {
-    const n = Number(value);
-
-    if (!Number.isFinite(n)) {
-        return "—";
-    }
-
-    return `${n.toFixed(digits)}%`;
-}
-
-function safeNumber(value, fallback = null) {
-    const n = Number(value);
-
-    return Number.isFinite(n)
-        ? n
-        : fallback;
-}
-
 function timeAgo(iso) {
     if (!iso) return "—";
 
-    const timestamp =
-        new Date(iso).getTime();
-
-    if (!Number.isFinite(timestamp)) {
-        return "—";
-    }
-
-    const s = Math.max(
-        0,
-        Math.floor(
-            (Date.now() - timestamp) /
-            1000
-        )
+    const s = Math.floor(
+        (Date.now() - new Date(iso).getTime()) /
+        1000
     );
 
     if (s < 60) {
@@ -111,98 +79,6 @@ function timeAgo(iso) {
     return `${Math.floor(h / 24)}d ago`;
 }
 
-/*
- * Backend response ba'zan:
- *
- * {
- *   cpu: {...},
- *   memory: {...}
- * }
- *
- * yoki:
- *
- * {
- *   data: {
- *     cpu: {...}
- *   }
- * }
- *
- * bo'lishi mumkin.
- *
- * Shu sabab frontend bitta joyda normalize qiladi.
- */
-function normalizeSystemResponse(response) {
-    if (!response) {
-        return null;
-    }
-
-    if (response.data?.cpu || response.data?.memory) {
-        return response.data;
-    }
-
-    if (response.result?.cpu || response.result?.memory) {
-        return response.result;
-    }
-
-    return response;
-}
-
-function normalizeListResponse(response) {
-    if (Array.isArray(response)) {
-        return response;
-    }
-
-    if (Array.isArray(response?.data)) {
-        return response.data;
-    }
-
-    if (Array.isArray(response?.items)) {
-        return response.items;
-    }
-
-    return [];
-}
-
-function normalizeDisk(system) {
-    const disk = system?.disk;
-
-    if (Array.isArray(disk)) {
-        return disk[0] ?? null;
-    }
-
-    if (disk && typeof disk === "object") {
-        return disk;
-    }
-
-    return null;
-}
-
-function getCpuPercent(system) {
-    return safeNumber(
-        system?.cpu?.currentLoad ??
-        system?.cpu?.load ??
-        system?.cpu?.usage
-    );
-}
-
-function getMemoryPercent(system) {
-    return safeNumber(
-        system?.memory?.ram?.usedPercent ??
-        system?.memory?.usedPercent ??
-        system?.memory?.usedPercentage
-    );
-}
-
-function getDiskPercent(system) {
-    const disk = normalizeDisk(system);
-
-    return safeNumber(
-        disk?.usePercent ??
-        disk?.usedPercent ??
-        disk?.usagePercent
-    );
-}
-
 /* =========================================================
    FULL WIDTH ASCII BAR
    ========================================================= */
@@ -213,10 +89,7 @@ function FullAsciiBar({
                       }) {
     const safePct = Math.min(
         100,
-        Math.max(
-            0,
-            safeNumber(pct, 0)
-        )
+        Math.max(0, Number(pct) || 0)
     );
 
     const activeSegments = Math.round(
@@ -292,6 +165,7 @@ function Spec({
                 boxSizing: "border-box",
             }}
         >
+            {/* HEADER */}
             <div
                 style={{
                     display: "flex",
@@ -310,6 +184,7 @@ function Spec({
                 </span>
             </div>
 
+            {/* VALUE */}
             <div
                 className="mono crt-glow"
                 style={{
@@ -322,6 +197,7 @@ function Spec({
                 {value}
             </div>
 
+            {/* SUB VALUE */}
             {sub && (
                 <div
                     className="mono"
@@ -335,6 +211,7 @@ function Spec({
                 </div>
             )}
 
+            {/* FULL WIDTH BAR */}
             {pct != null && (
                 <div
                     style={{
@@ -358,18 +235,11 @@ function DockerSpec({
                         docker,
                         className,
                     }) {
-    const containers = Array.isArray(
-        docker?.containers
-    )
-        ? docker.containers
-        : [];
+    const containers =
+        docker?.containers?.length ?? 0;
 
     const running =
-        docker?.running === true ||
-        docker?.status === "running";
-
-    const installed =
-        docker?.installed !== false;
+        Boolean(docker?.running);
 
     return (
         <Panel
@@ -381,6 +251,7 @@ function DockerSpec({
                 boxSizing: "border-box",
             }}
         >
+            {/* HEADER */}
             <div
                 style={{
                     display: "flex",
@@ -399,11 +270,13 @@ function DockerSpec({
                 </span>
             </div>
 
+            {/* MAIN */}
             <div
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
+                    justifyContent:
+                        "space-between",
                     gap: 20,
                 }}
             >
@@ -416,9 +289,7 @@ function DockerSpec({
                         color: "var(--text)",
                     }}
                 >
-                    {installed
-                        ? containers.length
-                        : "—"}
+                    {containers}
                 </div>
 
                 <div
@@ -440,15 +311,14 @@ function DockerSpec({
                     </span>
 
                     <span>
-                        {!installed
-                            ? "not installed"
-                            : running
-                                ? "running"
-                                : "stopped"}
+                        {running
+                            ? "running"
+                            : "stopped"}
                     </span>
                 </div>
             </div>
 
+            {/* DESCRIPTION */}
             <div
                 className="mono"
                 style={{
@@ -457,26 +327,27 @@ function DockerSpec({
                     color: "var(--text-muted)",
                 }}
             >
-                {!installed
-                    ? "docker engine not installed"
-                    : containers.length === 0
-                        ? "no containers"
-                        : `${containers.length} ${
-                            containers.length === 1
-                                ? "container"
-                                : "containers"
-                        } available`}
+                {containers === 0
+                    ? "no containers"
+                    : `${containers} ${
+                        containers === 1
+                            ? "container"
+                            : "containers"
+                    } available`}
             </div>
 
+            {/* DIVIDER */}
             <div
                 style={{
                     marginTop: 12,
                     width: "100%",
                     height: 1,
-                    background: "var(--border)",
+                    background:
+                        "var(--border)",
                 }}
             />
 
+            {/* ENGINE STATUS */}
             <div
                 className="mono"
                 style={{
@@ -498,11 +369,9 @@ function DockerSpec({
 
                 <span>
                     docker engine{" "}
-                    {!installed
-                        ? "not installed"
-                        : running
-                            ? "operational"
-                            : "offline"}
+                    {running
+                        ? "operational"
+                        : "offline"}
                 </span>
             </div>
         </Panel>
@@ -573,7 +442,7 @@ function SystemSpec({
                     wordBreak: "break-word",
                 }}
             >
-                {value || "—"}
+                {value}
             </div>
 
             {sub && (
@@ -594,25 +463,14 @@ function SystemSpec({
 }
 
 /* =========================================================
-   CONNECTED DEVICE
+   CONNECTED DEVICE CARD
    ========================================================= */
 
 function MiniBar({ pct = 0 }) {
-    const safePct = Math.min(
-        100,
-        Math.max(
-            0,
-            safeNumber(pct, 0)
-        )
-    );
-
+    const safePct = Math.min(100, Math.max(0, Number(pct) || 0));
     let color = "var(--success)";
-
-    if (safePct >= 85) {
-        color = "var(--danger)";
-    } else if (safePct >= 70) {
-        color = "var(--warning)";
-    }
+    if (safePct >= 85) color = "var(--danger)";
+    else if (safePct >= 70) color = "var(--warning)";
 
     return (
         <div
@@ -628,91 +486,40 @@ function MiniBar({ pct = 0 }) {
                     width: `${safePct}%`,
                     height: "100%",
                     background: color,
-                    transition:
-                        "width 0.3s ease",
+                    transition: "width 0.3s ease",
                 }}
             />
         </div>
     );
 }
 
-function MiniStat({
-                      label,
-                      pct,
-                  }) {
+function MiniStat({ label, pct }) {
     return (
-        <div
-            style={{
-                flex: "1 1 0",
-                minWidth: 0,
-            }}
-        >
+        <div style={{ flex: "1 1 0", minWidth: 0 }}>
             <div
                 className="mono"
                 style={{
                     display: "flex",
-                    justifyContent:
-                        "space-between",
+                    justifyContent: "space-between",
                     fontSize: 10.5,
-                    color:
-                        "var(--text-muted)",
+                    color: "var(--text-muted)",
                     marginBottom: 4,
                 }}
             >
                 <span>{label}</span>
-
-                <span>
-                    {pct != null
-                        ? `${Math.round(pct)}%`
-                        : "—"}
-                </span>
+                <span>{pct != null ? `${Math.round(pct)}%` : "—"}</span>
             </div>
-
             <MiniBar pct={pct} />
         </div>
     );
 }
 
-function DeviceCard({
-                        app,
-                        system,
-                        isPrimary,
-                        className,
-                    }) {
-    const online =
-        app.status === "online";
-
-    const metrics =
-        app.last_metrics ?? {};
-
-    /*
-     * Agar /apps response'da last_metrics bo'lmasa,
-     * primary app uchun dashboarddagi system overview'dan
-     * foydalanamiz.
-     */
-    const cpuPct =
-        safeNumber(
-            metrics.cpu
-        ) ??
-        (isPrimary
-            ? getCpuPercent(system)
-            : null);
-
-    const memPct =
-        safeNumber(
-            metrics.memory?.usedPercent
-        ) ??
-        (isPrimary
-            ? getMemoryPercent(system)
-            : null);
-
-    const diskPct =
-        safeNumber(
-            metrics.disk?.usedPercent
-        ) ??
-        (isPrimary
-            ? getDiskPercent(system)
-            : null);
+function DeviceCard({ app, className }) {
+    const online = app.status === "online";
+    const metrics = app.last_metrics ?? {};
+    const cpuPct = metrics.cpu;
+    const memPct = metrics.memory?.usedPercent;
+    const diskPct = metrics.disk?.usedPercent;
 
     return (
         <Panel
@@ -728,8 +535,7 @@ function DeviceCard({
                 style={{
                     display: "flex",
                     alignItems: "center",
-                    justifyContent:
-                        "space-between",
+                    justifyContent: "space-between",
                     marginBottom: 10,
                 }}
             >
@@ -740,84 +546,40 @@ function DeviceCard({
                         fontWeight: 600,
                         color: "var(--text)",
                         overflow: "hidden",
-                        textOverflow:
-                            "ellipsis",
-                        whiteSpace:
-                            "nowrap",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
                     }}
                 >
                     {app.name}
                 </div>
-
-                <StatusBadge
-                    status={
-                        online
-                            ? "online"
-                            : "offline"
-                    }
-                />
+                <StatusBadge status={online ? "online" : "offline"} />
             </div>
 
             <div
                 className="mono"
                 style={{
                     fontSize: 11,
-                    color:
-                        "var(--text-muted)",
+                    color: "var(--text-muted)",
                     marginBottom: 14,
                     overflow: "hidden",
-                    textOverflow:
-                        "ellipsis",
-                    whiteSpace:
-                        "nowrap",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
                 }}
             >
                 {app.hostname
-                    ? [
-                        app.hostname,
-                        app.os_platform,
-                        app.os_release,
-                    ]
-                        .filter(Boolean)
-                        .join(" · ")
+                    ? `${app.hostname} · ${app.os_platform ?? ""} ${app.os_release ?? ""}`.trim()
                     : "waiting for agent to register..."}
             </div>
 
             {online ? (
-                <div
-                    style={{
-                        display: "flex",
-                        gap: 10,
-                    }}
-                >
-                    <MiniStat
-                        label="cpu"
-                        pct={cpuPct}
-                    />
-
-                    <MiniStat
-                        label="mem"
-                        pct={memPct}
-                    />
-
-                    <MiniStat
-                        label="disk"
-                        pct={diskPct}
-                    />
+                <div style={{ display: "flex", gap: 10 }}>
+                    <MiniStat label="cpu" pct={cpuPct} />
+                    <MiniStat label="mem" pct={memPct} />
+                    <MiniStat label="disk" pct={diskPct} />
                 </div>
             ) : (
-                <div
-                    className="mono"
-                    style={{
-                        fontSize: 11,
-                        color:
-                            "var(--text-muted)",
-                    }}
-                >
-                    last seen{" "}
-                    {timeAgo(
-                        app.last_seen_at
-                    )}
+                <div className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                    last seen {timeAgo(app.last_seen_at)}
                 </div>
             )}
         </Panel>
@@ -838,175 +600,36 @@ export default function Dashboard() {
     const [apps, setApps] =
         useState([]);
 
-    const [primaryApp, setPrimaryApp] =
-        useState(null);
-
     const [loading, setLoading] =
         useState(false);
 
     const [error, setError] =
         useState(null);
 
-    /*
-     * Bir polling request hali tugamasdan ikkinchisi
-     * boshlanib ketmasligi uchun.
-     */
-    const loadingRef =
-        useRef(false);
-
-    /*
-     * Component unmount bo'lgandan keyin
-     * state update qilmaslik uchun.
-     */
-    const mountedRef =
-        useRef(true);
-
-    useEffect(() => {
-        mountedRef.current = true;
-
-        return () => {
-            mountedRef.current = false;
-        };
-    }, []);
-
-    /* =====================================================
-       LOAD
-       ===================================================== */
-
     const load = useCallback(
         async () => {
-            if (loadingRef.current) {
-                return;
-            }
-
-            loadingRef.current = true;
-
-            if (mountedRef.current) {
-                setLoading(true);
-                setError(null);
-            }
+            setLoading(true);
+            setError(null);
 
             try {
-                /*
-                 * Apps va jobs bir vaqtda olinadi.
-                 */
-                const [appsResponse, jobsResponse] =
+                const [sys, jb, ap] =
                     await Promise.all([
-                        api.apps.list(),
+                        api.system.overview(),
                         api.jobs.list(1, 6),
+                        api.apps.list().catch(() => []),
                     ]);
 
-                const appsList =
-                    normalizeListResponse(
-                        appsResponse
-                    );
-
-                const jobsList =
-                    normalizeListResponse(
-                        jobsResponse
-                    );
-
-                if (!mountedRef.current) {
-                    return;
-                }
-
-                setApps(appsList);
-                setJobs(jobsList);
-
-                /*
-                 * Avval online app.
-                 * Online bo'lmasa listdagi birinchi app.
-                 */
-                const primary =
-                    appsList.find(
-                        (app) =>
-                            app.status ===
-                            "online"
-                    ) ??
-                    appsList[0] ??
-                    null;
-
-                setPrimaryApp(primary);
-
-                /*
-                 * App yo'q bo'lsa system ham yo'q.
-                 */
-                if (!primary) {
-                    setSystem(null);
-                    return;
-                }
-
-                console.log(
-                    "[screenctl] primary app:",
-                    primary
-                );
-
-                /*
-                 * Aynan tanlangan machine'ning
-                 * system overview'ini olamiz.
-                 */
-                const systemResponse =
-                    await api.apps.system.overview(
-                        primary.id
-                    );
-
-                const normalizedSystem =
-                    normalizeSystemResponse(
-                        systemResponse
-                    );
-
-                console.log(
-                    "[screenctl] system response:",
-                    systemResponse
-                );
-
-                console.log(
-                    "[screenctl] normalized system:",
-                    normalizedSystem
-                );
-
-                if (!mountedRef.current) {
-                    return;
-                }
-
-                setSystem(
-                    normalizedSystem
-                );
+                setSystem(sys);
+                setJobs(jb.data);
+                setApps(ap);
             } catch (e) {
-                console.error(
-                    "[screenctl] dashboard load failed:",
-                    e
-                );
-
-                if (!mountedRef.current) {
-                    return;
-                }
-
-                setError(
-                    e?.message ||
-                    "failed to load dashboard"
-                );
-
-                /*
-                 * Error paytida eski system
-                 * ma'lumotini saqlab qolamiz.
-                 *
-                 * Bu UI'ni birdan "—" ga tushirib yubormaydi.
-                 */
+                setError(e.message);
             } finally {
-                loadingRef.current = false;
-
-                if (mountedRef.current) {
-                    setLoading(false);
-                }
+                setLoading(false);
             }
         },
         []
     );
-
-    /* =====================================================
-       POLLING
-       ===================================================== */
 
     const pollMs = useRef(
         jitteredInterval(8000)
@@ -1015,62 +638,32 @@ export default function Dashboard() {
     useEffect(() => {
         load();
 
-        const intervalId =
-            setInterval(
-                load,
-                pollMs
-            );
+        const id = setInterval(
+            load,
+            pollMs
+        );
 
-        return () => {
-            clearInterval(
-                intervalId
-            );
-        };
-    }, [
-        load,
-        pollMs,
-    ]);
-
-    /* =====================================================
-       SYSTEM DATA
-       ===================================================== */
+        return () =>
+            clearInterval(id);
+    }, [load, pollMs]);
 
     const cpu =
-        system?.cpu ?? null;
+        system?.cpu;
 
     const mem =
-        system?.memory ?? null;
-
-    const ram =
-        mem?.ram ?? null;
-
-    const swap =
-        mem?.swap ?? null;
+        system?.memory;
 
     const disk =
-        normalizeDisk(system);
+        system?.disk?.[0];
 
     const os =
-        system?.os ?? null;
+        system?.os;
 
-    const docker =
-        system?.docker ?? null;
+    const ram =
+        mem?.ram;
 
-    const cpuPercent =
-        getCpuPercent(system);
-
-    const memoryPercent =
-        getMemoryPercent(system);
-
-    const diskPercent =
-        getDiskPercent(system);
-
-    const dockerContainers =
-        Array.isArray(
-            docker?.containers
-        )
-            ? docker.containers
-            : [];
+    const swap =
+        mem?.swap;
 
     return (
         <div>
@@ -1119,155 +712,126 @@ export default function Dashboard() {
 
             <SectionLabel index="01">
                 hardware
-                {primaryApp &&
-                    ` · ${primaryApp.name}`}
             </SectionLabel>
 
-            {!primaryApp ? (
-                <Panel
-                    style={{
-                        marginBottom: 36,
-                    }}
-                >
-                    <EmptyState>
-                        no connected device to show hardware stats for
-                    </EmptyState>
-                </Panel>
-            ) : (
-                <div
-                    className="spec-grid"
-                    style={{
-                        display: "flex",
-                        gap: 12,
-                        flexWrap: "wrap",
-                        marginBottom: 36,
-                        width: "100%",
-                    }}
-                >
-                    {/* CPU */}
+            <div
+                className="spec-grid"
+                style={{
+                    display: "flex",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    marginBottom: 36,
+                    width: "100%",
+                }}
+            >
+                {/* CPU */}
+                <Spec
+                    className="fade-in-up stagger-1"
+                    icon={Cpu}
+                    label="cpu"
+                    value={
+                        cpu
+                            ? `${cpu.currentLoad.toFixed(
+                                0
+                            )}%`
+                            : "—"
+                    }
+                    sub={
+                        cpu
+                            ? `${cpu.cores} cores`
+                            : ""
+                    }
+                    pct={
+                        cpu?.currentLoad
+                    }
+                />
 
-                    <Spec
-                        className="fade-in-up stagger-1"
-                        icon={Cpu}
-                        label="cpu"
-                        value={
-                            cpuPercent != null
-                                ? fmtPercent(
-                                    cpuPercent
-                                )
-                                : "—"
-                        }
-                        sub={
-                            cpu
-                                ? [
-                                    cpu.brand ??
-                                    cpu.manufacturer,
-                                    cpu.cores != null
-                                        ? `${cpu.cores} cores`
-                                        : null,
-                                ]
-                                    .filter(Boolean)
-                                    .join(" · ")
-                                : ""
-                        }
-                        pct={
-                            cpuPercent
-                        }
-                    />
+                {/* RAM */}
+                <Spec
+                    className="fade-in-up stagger-2"
+                    icon={MemoryStick}
+                    label="memory"
+                    value={
+                        ram
+                            ? `${ram.usedPercent.toFixed(
+                                0
+                            )}%`
+                            : "—"
+                    }
+                    sub={
+                        ram
+                            ? `${fmtBytes(
+                                ram.used
+                            )} / ${fmtBytes(
+                                ram.total
+                            )}`
+                            : ""
+                    }
+                    pct={
+                        ram?.usedPercent
+                    }
+                />
 
-                    {/* RAM */}
+                {/* SWAP */}
+                <Spec
+                    className="fade-in-up stagger-3"
+                    icon={ArrowDownUp}
+                    label="swap"
+                    value={
+                        swap
+                            ? `${swap.usedPercent.toFixed(
+                                0
+                            )}%`
+                            : "—"
+                    }
+                    sub={
+                        swap
+                            ? `${fmtBytes(
+                                swap.used
+                            )} / ${fmtBytes(
+                                swap.total
+                            )}`
+                            : ""
+                    }
+                    pct={
+                        swap?.usedPercent
+                    }
+                />
 
-                    <Spec
-                        className="fade-in-up stagger-2"
-                        icon={MemoryStick}
-                        label="memory"
-                        value={
-                            memoryPercent != null
-                                ? fmtPercent(
-                                    memoryPercent
-                                )
-                                : "—"
-                        }
-                        sub={
-                            ram
-                                ? `${fmtBytes(
-                                    ram.used
-                                )} / ${fmtBytes(
-                                    ram.total
-                                )}`
-                                : ""
-                        }
-                        pct={
-                            memoryPercent
-                        }
-                    />
+                {/* DISK */}
+                <Spec
+                    className="fade-in-up stagger-4"
+                    icon={HardDrive}
+                    label="disk"
+                    value={
+                        disk
+                            ? `${disk.usePercent.toFixed(
+                                0
+                            )}%`
+                            : "—"
+                    }
+                    sub={
+                        disk
+                            ? `${fmtBytes(
+                                disk.used
+                            )} / ${fmtBytes(
+                                disk.size
+                            )}`
+                            : ""
+                    }
+                    pct={
+                        disk?.usePercent
+                    }
+                />
 
-                    {/* SWAP */}
-
-                    <Spec
-                        className="fade-in-up stagger-3"
-                        icon={ArrowDownUp}
-                        label="swap"
-                        value={
-                            swap?.usedPercent != null
-                                ? fmtPercent(
-                                    swap.usedPercent
-                                )
-                                : "—"
-                        }
-                        sub={
-                            swap
-                                ? `${fmtBytes(
-                                    swap.used
-                                )} / ${fmtBytes(
-                                    swap.total
-                                )}`
-                                : ""
-                        }
-                        pct={
-                            safeNumber(
-                                swap?.usedPercent
-                            )
-                        }
-                    />
-
-                    {/* DISK */}
-
-                    <Spec
-                        className="fade-in-up stagger-4"
-                        icon={HardDrive}
-                        label="disk"
-                        value={
-                            diskPercent != null
-                                ? fmtPercent(
-                                    diskPercent
-                                )
-                                : "—"
-                        }
-                        sub={
-                            disk
-                                ? `${fmtBytes(
-                                    disk.used
-                                )} / ${fmtBytes(
-                                    disk.size
-                                )}`
-                                : ""
-                        }
-                        pct={
-                            diskPercent
-                        }
-                    />
-
-                    {/* DOCKER */}
-
-                    <DockerSpec
-                        className="fade-in-up stagger-5"
-                        docker={
-                            docker
-                        }
-                    />
-                </div>
-            )}
+                {/* DOCKER */}
+                <DockerSpec
+                    className="fade-in-up stagger-5"
+                    docker={
+                        system?.docker
+                    }
+                />
+            </div>
 
             {/* =================================================
                 CONNECTED DEVICES
@@ -1275,51 +839,17 @@ export default function Dashboard() {
 
             <div className="fade-in-up stagger-6">
                 <SectionLabel index="02">
-                    connected devices (
-                    {apps.length}
-                    )
+                    connected devices ({apps.length})
                 </SectionLabel>
 
                 {apps.length === 0 ? (
-                    <Panel
-                        style={{
-                            marginBottom: 36,
-                        }}
-                    >
+                    <Panel style={{ marginBottom: 36 }}>
                         <EmptyState>
-                            <div
-                                style={{
-                                    display:
-                                        "flex",
-                                    flexDirection:
-                                        "column",
-                                    alignItems:
-                                        "center",
-                                    gap: 6,
-                                }}
-                            >
-                                <MonitorSmartphone
-                                    size={18}
-                                    color="var(--text-muted)"
-                                />
-
-                                <span>
-                                    no devices connected yet
-                                </span>
-
-                                <span
-                                    className="mono"
-                                    style={{
-                                        fontSize: 11,
-                                        color:
-                                            "var(--text-muted)",
-                                    }}
-                                >
-                                    run{" "}
-                                    <code>
-                                        screenctl app connect
-                                    </code>{" "}
-                                    on a machine to add it here
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                                <MonitorSmartphone size={18} color="var(--text-muted)" />
+                                <span>no devices connected yet</span>
+                                <span className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                    run <code>screenctl app connect</code> on a machine to add it here
                                 </span>
                             </div>
                         </EmptyState>
@@ -1334,24 +864,9 @@ export default function Dashboard() {
                             width: "100%",
                         }}
                     >
-                        {apps.map(
-                            (app) => (
-                                <DeviceCard
-                                    key={
-                                        app.id
-                                    }
-                                    app={app}
-                                    system={
-                                        system
-                                    }
-                                    isPrimary={
-                                        app.id ===
-                                        primaryApp?.id
-                                    }
-                                    className="fade-in-up"
-                                />
-                            )
-                        )}
+                        {apps.map((a) => (
+                            <DeviceCard key={a.id} app={a} className="fade-in-up" />
+                        ))}
                     </div>
                 )}
             </div>
@@ -1364,8 +879,6 @@ export default function Dashboard() {
                 <div className="fade-in-up stagger-6">
                     <SectionLabel index="03">
                         system
-                        {primaryApp &&
-                            ` · ${primaryApp.name}`}
                     </SectionLabel>
 
                     <div
@@ -1378,7 +891,6 @@ export default function Dashboard() {
                         }}
                     >
                         {/* DISTRO */}
-
                         <SystemSpec
                             icon={Monitor}
                             label="distro"
@@ -1393,7 +905,6 @@ export default function Dashboard() {
                         />
 
                         {/* ARCHITECTURE */}
-
                         <SystemSpec
                             icon={Cpu}
                             label="architecture"
@@ -1406,7 +917,6 @@ export default function Dashboard() {
                         />
 
                         {/* KERNEL */}
-
                         <SystemSpec
                             icon={Terminal}
                             label="kernel"
@@ -1425,12 +935,11 @@ export default function Dashboard() {
                 RUNNING CONTAINERS
                ================================================= */}
 
-            {dockerContainers.length > 0 && (
+            {system?.docker
+                ?.containers?.length > 0 && (
                 <div className="fade-in-up stagger-6">
                     <SectionLabel index="04">
                         running containers
-                        {primaryApp &&
-                            ` · ${primaryApp.name}`}
                     </SectionLabel>
 
                     <Panel
@@ -1438,89 +947,64 @@ export default function Dashboard() {
                             marginBottom: 36,
                         }}
                     >
-                        {dockerContainers.map(
-                            (container, index) => {
-                                const id =
-                                    container.ID ??
-                                    container.Id ??
-                                    container.id ??
-                                    `container-${index}`;
-
-                                const name =
-                                    container.Names ??
-                                    container.Name ??
-                                    container.name ??
-                                    "unknown";
-
-                                const state =
-                                    container.State ??
-                                    container.Status ??
-                                    container.state ??
-                                    "unknown";
-
-                                const ports =
-                                    container.Ports ??
-                                    container.ports ??
-                                    "";
-
-                                return (
-                                    <div
-                                        key={id}
-                                        className="mono"
+                        {system.docker.containers.map(
+                            (c, i) => (
+                                <div
+                                    key={c.ID}
+                                    className="mono"
+                                    style={{
+                                        display:
+                                            "flex",
+                                        alignItems:
+                                            "center",
+                                        gap: 12,
+                                        padding:
+                                            "10px 20px",
+                                        borderTop:
+                                            i === 0
+                                                ? "none"
+                                                : "1px solid var(--border)",
+                                        fontSize: 13,
+                                    }}
+                                >
+                                    <span
                                         style={{
-                                            display:
-                                                "flex",
-                                            alignItems:
-                                                "center",
-                                            gap: 12,
-                                            padding:
-                                                "10px 20px",
-                                            borderTop:
-                                                index === 0
-                                                    ? "none"
-                                                    : "1px solid var(--border)",
-                                            fontSize: 13,
+                                            color:
+                                                "var(--success)",
                                         }}
                                     >
-                                        <span
-                                            style={{
-                                                color:
-                                                    "var(--success)",
-                                            }}
-                                        >
-                                            ●
-                                        </span>
+                                        ●
+                                    </span>
 
-                                        <span
-                                            style={{
-                                                minWidth: 160,
-                                            }}
-                                        >
-                                            {name}
-                                        </span>
+                                    <span
+                                        style={{
+                                            minWidth: 160,
+                                        }}
+                                    >
+                                        {c.Names}
+                                    </span>
 
-                                        <span
-                                            style={{
-                                                color:
-                                                    "var(--text-secondary)",
-                                            }}
-                                        >
-                                            {state}
-                                        </span>
+                                    <span
+                                        style={{
+                                            color:
+                                                "var(--text-secondary)",
+                                        }}
+                                    >
+                                        {c.State}
+                                    </span>
 
-                                        <span
-                                            style={{
-                                                color:
-                                                    "var(--text-muted)",
-                                                marginLeft:
-                                                    "auto",
-                                            }}
-                                        >
-                                            {ports}
-                                        </span>
-                                    </div>
-                                );
-                            }
+                                    <span
+                                        style={{
+                                            color:
+                                                "var(--text-muted)",
+                                            marginLeft:
+                                                "auto",
+                                        }}
+                                    >
+                                        {c.Ports}
+                                    </span>
+                                </div>
+                            )
                         )}
                     </Panel>
                 </div>
@@ -1544,99 +1028,86 @@ export default function Dashboard() {
 
                     {jobs
                         .slice(0, 6)
-                        .map(
-                            (job, index) => (
-                                <Link
-                                    key={
-                                        job.id
-                                    }
-                                    to={`/jobs/${job.id}`}
-                                    className="mono"
+                        .map((j, i) => (
+                            <Link
+                                key={j.id}
+                                to={`/jobs/${j.id}`}
+                                className="mono"
+                                style={{
+                                    display:
+                                        "flex",
+                                    justifyContent:
+                                        "space-between",
+                                    alignItems:
+                                        "center",
+                                    padding:
+                                        "13px 20px",
+                                    borderTop:
+                                        i === 0
+                                            ? "none"
+                                            : "1px solid var(--border)",
+                                    fontSize: 13,
+                                }}
+                            >
+                                <div
                                     style={{
                                         display:
                                             "flex",
-                                        justifyContent:
-                                            "space-between",
                                         alignItems:
                                             "center",
-                                        padding:
-                                            "13px 20px",
-                                        borderTop:
-                                            index ===
-                                            0
-                                                ? "none"
-                                                : "1px solid var(--border)",
-                                        fontSize: 13,
-                                        textDecoration:
-                                            "none",
+                                        gap: 10,
                                     }}
                                 >
-                                    <div
+                                    <span>
+                                        {j.action}
+                                    </span>
+
+                                    <span
                                         style={{
-                                            display:
-                                                "flex",
-                                            alignItems:
-                                                "center",
-                                            gap: 10,
+                                            fontSize:
+                                                11.5,
+                                            color:
+                                                "var(--text-muted)",
                                         }}
                                     >
-                                        <span>
-                                            {
-                                                job.action
-                                            }
-                                        </span>
-
-                                        {job.id && (
-                                            <span
-                                                style={{
-                                                    fontSize:
-                                                        11.5,
-                                                    color:
-                                                        "var(--text-muted)",
-                                                }}
-                                            >
-                                                #
-                                                {String(
-                                                    job.id
-                                                ).slice(
-                                                    0,
-                                                    8
-                                                )}
-                                            </span>
+                                        #
+                                        {j.id.slice(
+                                            0,
+                                            8
                                         )}
-                                    </div>
+                                    </span>
+                                </div>
 
-                                    <div
+                                <div
+                                    style={{
+                                        display:
+                                            "flex",
+                                        alignItems:
+                                            "center",
+                                        gap: 18,
+                                    }}
+                                >
+                                    <span
                                         style={{
-                                            display:
-                                                "flex",
-                                            alignItems:
-                                                "center",
-                                            gap: 18,
+                                            fontSize:
+                                                12,
+                                            color:
+                                                "var(--text-muted)",
                                         }}
                                     >
-                                        <span
-                                            style={{
-                                                fontSize:
-                                                    12,
-                                                color:
-                                                    "var(--text-muted)",
-                                            }}
-                                        >
-                                            {timeAgo(
-                                                job.created_at
-                                            )}
-                                        </span>
+                                        {timeAgo(
+                                            j.created_at
+                                        )}
+                                    </span>
 
-                                        <StatusBadge
-                                            status={
-                                                job.status
-                                            }
-                                        />
-                                    </div>
-                                </Link>
-                            )
-                        )}
+                                    <StatusBadge
+                                        status={
+                                            j.status
+                                        }
+                                    />
+                                </div>
+                            </Link>
+                        ))}
                 </Panel>
             </div>
         </div>

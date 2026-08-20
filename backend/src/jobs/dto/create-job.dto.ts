@@ -1,4 +1,4 @@
-import { IsObject, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
+import { IsObject, IsOptional, IsString, IsUUID, Matches, MaxLength } from 'class-validator';
 
 const SLUG_PATTERN = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
@@ -16,4 +16,9 @@ export class CreateJobDTO {
   @IsOptional()
   @IsObject()
   args?: Record<string, unknown>;
+
+  // Berilsa — job shu App (agent) orqali masofada ishlaydi.
+  @IsOptional()
+  @IsUUID()
+  appId?: string;
 }

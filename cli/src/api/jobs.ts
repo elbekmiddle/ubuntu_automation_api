@@ -1,8 +1,8 @@
 import { api } from './client.js';
 import type { Job, JobListResponse, JobLogLine } from '../types.js';
 
-export async function createJob(templateSlug: string, action: string, args: Record<string, unknown> = {}): Promise<Job> {
-    const { data } = await api.post<Job>('/jobs', { templateSlug, action, args });
+export async function createJob(templateSlug: string, action: string, args: Record<string, unknown> = {}, appId?: string): Promise<Job> {
+    const { data } = await api.post<Job>('/jobs', { templateSlug, action, args, appId });
     return data;
 }
 

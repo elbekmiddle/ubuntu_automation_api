@@ -10,7 +10,7 @@ export class JobsController {
     @Post()
     @Throttle({ default: { limit: 10, ttl: 60000 } }) // script ishga tushirish — 1 daqiqada 10 tadan ko'p emas
     create(@Body() body: CreateJobDTO) {
-        return this.jobsService.enqueue(body.templateSlug, body.action, body.args ?? {});
+        return this.jobsService.enqueue(body.templateSlug, body.action, body.args ?? {}, body.appId);
     }
 
     @Get()

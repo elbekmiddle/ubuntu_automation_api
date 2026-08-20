@@ -1,5 +1,5 @@
 -- =========================================================
--- SCREENCTL — TO'LIQ SXEMA (001..006 birlashtirilgan)
+-- SCREENCTL — TO'LIQ SXEMA (001..007 birlashtirilgan)
 -- Bo'sh bazada bir marta ishga tushiring.
 -- =========================================================
 
@@ -252,4 +252,13 @@ CREATE INDEX IF NOT EXISTS idx_apps_last_seen_at ON apps(last_seen_at DESC);
 -- ro'yxati (masalan JSONB) kerak bo'lsa shu ustunni almashtiramiz.
 ALTER TABLE apps ADD COLUMN IF NOT EXISTS permission TEXT NOT NULL DEFAULT 'read_write'
     CHECK (permission IN ('read_only', 'read_write'));
+
+
+-- ================= 007_jobs_app_routing.sql =================
+
+-- Job qaysi App (agent) orqali ishga tushirilganini bildiradi. NULL bo'lsa —
+-- job backend mashinasining o'zida (local spawn) ishlaydi, xuddi hozirgidek.
+ALTER TABLE jobs ADD COLUMN IF NOT EXISTS app_id UUID REFERENCES apps(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_jobs_app_id ON jobs(app_id);
 

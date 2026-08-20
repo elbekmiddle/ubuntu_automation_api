@@ -2,12 +2,14 @@ import { select, confirm } from '@inquirer/prompts';
 import chalk from 'chalk';
 import { listTemplates, getTemplate } from '../api/templates.js';
 import { createJob, waitForJob } from '../api/jobs.js';
+import { listApps } from '../api/apps.js';
 import { isLoggedIn } from '../config/store.js';
 import { printError, requireLogin } from '../utils/errors.js';
-import type { Template } from '../types.js';
+import type { App, Template } from '../types.js';
 
 export interface RunOptions {
     action?: string;
+    device?: string; // App ID yoki nomi — berilsa shu device'da masofada ishlaydi
     yes?: boolean; // confirm so'ramasdan darhol ishga tushirish
 }
 
@@ -44,12 +46,63 @@ async function pickAction(template: Template, preselected?: string): Promise<str
     });
 }
 
+/**
+ * Device tanlaydi. `null` qaytsa — "This machine (local)" tanlangan, ya'ni
+ * job backend mashinasining o'zida ishlaydi (avvalgi xatti-harakat).
+ * Hozircha ulangan device yo'q bo'lsa — savol bermay to'g'ridan-to'g'ri
+ * local'ni tanlaydi (eski flow buzilmasin deb).
+ */
+async function pickDevice(preselected?: string): Promise<App | null> {
+    let apps: App[] = [];
+    try {
+        apps = await listApps();
+    } catch {
+        return null; // login yo'q yoki xato — jim local'ga tushamiz
+    }
+
+    if (preselected) {
+        const found = apps.find((a) => a.id === preselected || a.name === preselected);
+        if (!found) {
+            throw new Error(`"${preselected}" nomli/IDli device topilmadi.`);
+        }
+        return found;
+    }
+
+    if (apps.length === 0) return null; // hali device yo'q — local'ning o'zi
+
+    const choice = await select({
+        message: 'Select device',
+        choices: [
+            { name: 'This machine (local)', value: '__local__' },
+            ...apps.map((a) => ({
+                name: `${a.status === 'online' ? '●' : '○'} ${a.name}${a.status === 'offline' ? '  (offline)' : ''}`,
+                value: a.id,
+            })),
+        ],
+    });
+
+    if (choice === '__local__') return null;
+    return apps.find((a) => a.id === choice) ?? null;
+}
+
 export async function runCommand(templateArg?: string, opts: RunOptions = {}): Promise<void> {
     if (!isLoggedIn()) return requireLogin();
 
     try {
         const template = await pickTemplate(templateArg);
         const action = await pickAction(template, opts.action);
+        const device = await pickDevice(opts.device);
+
+        if (device && device.status === 'offline') {
+            console.log();
+            console.log(chalk.yellow(`⚠ Device is offline`));
+            console.log(chalk.dim(`  "${device.name}" hasn't been seen recently.\n`));
+            const proceedAnyway = await confirm({ message: 'Continue anyway?', default: false });
+            if (!proceedAnyway) {
+                console.log(chalk.dim('Bekor qilindi.'));
+                return;
+            }
+        }
 
         console.log();
         console.log(chalk.dim('┌─────────────────────────────────────'));
@@ -57,6 +110,7 @@ export async function runCommand(templateArg?: string, opts: RunOptions = {}): P
         console.log(chalk.dim('│'));
         console.log(chalk.dim('│ ') + `Template  ${template.name}`);
         console.log(chalk.dim('│ ') + `Action    ${action}`);
+        console.log(chalk.dim('│ ') + `Device    ${device ? device.name : 'This machine (local)'}`);
         console.log(chalk.dim('└─────────────────────────────────────'));
         console.log();
 
@@ -68,9 +122,9 @@ export async function runCommand(templateArg?: string, opts: RunOptions = {}): P
             }
         }
 
-        console.log(chalk.dim(`\nRunning ${template.name} / ${action}...\n`));
+        console.log(chalk.dim(`\nRunning ${template.name} / ${action}${device ? ` on ${device.name}` : ''}...\n`));
 
-        const job = await createJob(template.slug, action);
+        const job = await createJob(template.slug, action, {}, device?.id);
         const startedAt = Date.now();
 
         const finished = await waitForJob(job.id, (line) => {

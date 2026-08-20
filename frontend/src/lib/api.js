@@ -101,58 +101,9 @@ export const api = {
     },
     me: () => request("/auth/me"),
   },
-      apps: {
-        list: () => request("/apps"),
-
-        get: (id) =>
-            request(`/apps/${id}`),
-
-        create: (name) =>
-            request("/apps", {
-              method: "POST",
-              body: JSON.stringify({ name }),
-            }),
-
-        remove: (id) =>
-            request(`/apps/${id}`, {
-              method: "DELETE",
-            }),
-
-        system: {
-          overview: (_id) =>
-              request("/system"),
-
-          cpu: (_id) =>
-              request("/system/cpu"),
-
-          memory: (_id) =>
-              request("/system/memory"),
-
-          disk: (_id) =>
-              request("/system/disk"),
-
-          network: (_id) =>
-              request("/system/network"),
-
-          processes: (_id) =>
-              request("/system/processes"),
-
-          process: (_id, pid) =>
-              request(`/system/processes/${pid}`),
-
-          docker: (_id) =>
-              request("/system/docker"),
-
-          os: (_id) =>
-              request("/system/os"),
-
-          ports: (_id) =>
-              request("/system/ports"),
-
-          uptime: (_id) =>
-              request("/system/uptime"),
-        },
-      },
+  system: {
+    overview: () => request("/system"),
+  },
   templates: {
     list: () => request("/templates"),
     get: async (id) => {
@@ -210,18 +161,12 @@ export const api = {
     list: () => request("/devices"),
     activeCount: () => request("/devices/active-count"),
   },
-  // apps: {
-  //   list: () => request("/apps"),
-  //   get: (id) => request(`/apps/${id}`),
-  //   create: (name) =>
-  //       request("/apps", {
-  //         method: "POST",
-  //         body: JSON.stringify({ name }),
-  //       }),
-  //   remove: (id) => request(`/apps/${id}`, { method: "DELETE" }),
-  //
-  //   system: (id) => request(`/apps/${id}/system`),
-  // },
+  apps: {
+    list: () => request("/apps"),
+    get: (id) => request(`/apps/${id}`),
+    create: (name) => request("/apps", { method: "POST", body: JSON.stringify({ name }) }),
+    remove: (id) => request(`/apps/${id}`, { method: "DELETE" }),
+  },
   auditLogs: {
     list: (limit = 50) => request(`/audit-logs?limit=${limit}`),
   },

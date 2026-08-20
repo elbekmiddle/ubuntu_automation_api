@@ -91,9 +91,10 @@ function buildProgram(): Command {
 
     program.command('run [template] [action]')
         .description('Run a template action — interactive if arguments are omitted')
+        .option('-d, --device <appIdOrName>', 'Run on a specific connected device instead of locally')
         .option('-y, --yes', 'Skip the confirmation prompt')
-        .action(async (templateArg?: string, actionArg?: string, opts?: { yes?: boolean }) => {
-            await runCommand(templateArg, { action: actionArg, yes: opts?.yes });
+        .action(async (templateArg?: string, actionArg?: string, opts?: { device?: string; yes?: boolean }) => {
+            await runCommand(templateArg, { action: actionArg, device: opts?.device, yes: opts?.yes });
         });
 
     return program;
