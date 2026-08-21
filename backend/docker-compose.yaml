@@ -5,7 +5,7 @@ services:
       POSTGRES_USER: automation
       POSTGRES_PASSWORD: automation
       POSTGRES_DB: automation_platform
-    ports: ["5432:5432"]
+    ports: ["5433:5432"]
     volumes: ["pg_data:/var/lib/postgresql/data"]
 
   redis:
