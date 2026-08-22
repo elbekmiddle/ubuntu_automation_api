@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getStaticSystemInfo, collectHeartbeatMetrics } from './collect.js';
+import { registerTerminalHandlers } from './terminal.js';
 
 export interface AgentRunOptions {
     apiUrl: string;
@@ -110,6 +111,7 @@ export function runAgent(opts: AgentRunOptions): { stop: () => Promise<void> } {
     });
 
     let heartbeatTimer: NodeJS.Timeout | null = null;
+    let stopTerminalHandlers: (() => void) | null = null;
 
     function stopHeartbeat() {
         if (heartbeatTimer) {
@@ -154,10 +156,15 @@ export function runAgent(opts: AgentRunOptions): { stop: () => Promise<void> } {
         stopHeartbeat();
         void sendHeartbeat();
         heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
+
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = registerTerminalHandlers(socket, log);
     });
 
     socket.on('disconnect', (reason) => {
         stopHeartbeat();
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = null;
         log(chalk.yellow(`○ Disconnected (${reason}) — will retry...`));
     });
 
@@ -171,6 +178,8 @@ export function runAgent(opts: AgentRunOptions): { stop: () => Promise<void> } {
 
     async function stop(): Promise<void> {
         stopHeartbeat();
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = null;
         socket.disconnect();
     }
 

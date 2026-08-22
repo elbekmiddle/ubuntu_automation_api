@@ -5,6 +5,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getStaticSystemInfo, collectHeartbeatMetrics } from './collect.js';
+import { registerTerminalHandlers } from './terminal.js';
 const SCRIPT_TIMEOUT_MS = Number(process.env.SCREENCTL_SCRIPT_TIMEOUT_MS ?? 5 * 60 * 1000);
 /**
  * Backenddan kelgan 'job:run' hodisasini bajaradi — script'ni vaqtinchalik
@@ -85,6 +86,7 @@ export function runAgent(opts) {
         transports: ['websocket', 'polling'],
     });
     let heartbeatTimer = null;
+    let stopTerminalHandlers = null;
     function stopHeartbeat() {
         if (heartbeatTimer) {
             clearInterval(heartbeatTimer);
@@ -123,9 +125,13 @@ export function runAgent(opts) {
         stopHeartbeat();
         void sendHeartbeat();
         heartbeatTimer = setInterval(sendHeartbeat, heartbeatIntervalMs);
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = registerTerminalHandlers(socket, log);
     });
     socket.on('disconnect', (reason) => {
         stopHeartbeat();
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = null;
         log(chalk.yellow(`○ Disconnected (${reason}) — will retry...`));
     });
     socket.on('connect_error', (err) => {
@@ -136,6 +142,8 @@ export function runAgent(opts) {
     });
     async function stop() {
         stopHeartbeat();
+        stopTerminalHandlers?.();
+        stopTerminalHandlers = null;
         socket.disconnect();
     }
     return { stop };

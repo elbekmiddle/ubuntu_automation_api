@@ -1,0 +1,215 @@
+import React, { useEffect, useRef, useState } from "react";
+import { Terminal as XTerm } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import "@xterm/xterm/css/xterm.css";
+import { TerminalSquare, Power } from "lucide-react";
+import { connectClientSocket } from "../lib/socket";
+import { Panel, Button } from "./ui";
+
+const XTERM_THEME = {
+  background: "#0C0C0B",
+  foreground: "#D4D4D4",
+  cursor: "#5FD3E0",
+  selectionBackground: "#3FA6BE55",
+  black: "#0C0C0B",
+  red: "#F0847E",
+  green: "#6FDB93",
+  yellow: "#F0C97A",
+  blue: "#5FD3E0",
+  magenta: "#C792EA",
+  cyan: "#5FD3E0",
+  white: "#D4D4D4",
+};
+
+/** appId — hozir ochilgan device; faqat `read_write` va online device'larda ishlaydi. */
+export default function DeviceTerminal({ appId, canConnect }) {
+  const containerRef = useRef(null);
+  const xtermRef = useRef(null);
+  const fitRef = useRef(null);
+  const sessionIdRef = useRef(null);
+  const socketRef = useRef(null);
+
+  const [status, setStatus] = useState("idle"); // idle | connecting | open | closed | error
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!containerRef.current) return undefined;
+
+    const term = new XTerm({
+      convertEol: true,
+      cursorBlink: true,
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: 13,
+      theme: XTERM_THEME,
+    });
+    const fit = new FitAddon();
+    term.loadAddon(fit);
+    term.open(containerRef.current);
+    fit.fit();
+
+    xtermRef.current = term;
+    fitRef.current = fit;
+
+    const onResize = () => fit.fit();
+    window.addEventListener("resize", onResize);
+
+    return () => {
+      window.removeEventListener("resize", onResize);
+      term.dispose();
+      xtermRef.current = null;
+      fitRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const term = xtermRef.current;
+    if (!term) return undefined;
+
+    let disposed = false;
+    let dataListener = null;
+
+    function teardown() {
+      const socket = socketRef.current;
+      const sessionId = sessionIdRef.current;
+      if (socket && sessionId) {
+        socket.emit("terminal:close", { sessionId });
+        socket.off("terminal:data", onData);
+        socket.off("terminal:exit", onExit);
+      }
+      sessionIdRef.current = null;
+    }
+
+    function onData(payload) {
+      if (payload.sessionId === sessionIdRef.current) term.write(payload.data);
+    }
+
+    function onExit(payload) {
+      if (payload.sessionId !== sessionIdRef.current) return;
+      term.writeln("\r\n\x1b[2m[session ended]\x1b[0m");
+      setStatus("closed");
+      sessionIdRef.current = null;
+    }
+
+    function open() {
+      const socket = connectClientSocket();
+      socketRef.current = socket;
+      setStatus("connecting");
+      setError(null);
+
+      const cols = term.cols;
+      const rows = term.rows;
+
+      const doOpen = () => {
+        socket.emit("terminal:open", { appId, cols, rows }, (ack) => {
+          if (disposed) return;
+          if (!ack || ack.event === "terminal:error") {
+            setStatus("error");
+            setError(ack?.data?.message ?? "Terminal ochilmadi");
+            return;
+          }
+          sessionIdRef.current = ack.data.sessionId;
+          setStatus("open");
+          term.focus();
+        });
+      };
+
+      if (socket.connected) doOpen();
+      else socket.once("connect", doOpen);
+
+      socket.on("terminal:data", onData);
+      socket.on("terminal:exit", onExit);
+    }
+
+    dataListener = term.onData((data) => {
+      const socket = socketRef.current;
+      const sessionId = sessionIdRef.current;
+      if (socket && sessionId) socket.emit("terminal:input", { sessionId, data });
+    });
+
+    if (canConnect) open();
+    else setStatus("idle");
+
+    return () => {
+      disposed = true;
+      dataListener?.dispose();
+      teardown();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appId, canConnect]);
+
+  const reconnect = () => {
+    xtermRef.current?.reset();
+    sessionIdRef.current = null;
+    const socket = socketRef.current ?? connectClientSocket();
+    socketRef.current = socket;
+    setStatus("connecting");
+    setError(null);
+    const term = xtermRef.current;
+    const send = () =>
+      socket.emit("terminal:open", { appId, cols: term.cols, rows: term.rows }, (ack) => {
+        if (!ack || ack.event === "terminal:error") {
+          setStatus("error");
+          setError(ack?.data?.message ?? "Terminal ochilmadi");
+          return;
+        }
+        sessionIdRef.current = ack.data.sessionId;
+        setStatus("open");
+        term.focus();
+      });
+    if (socket.connected) send();
+    else socket.once("connect", send);
+  };
+
+  return (
+    <Panel style={{ padding: 0, overflow: "hidden" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 14px",
+          borderBottom: "1px solid var(--border)",
+          background: "var(--surface)",
+        }}
+        className="mono"
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12.5, color: "var(--text-secondary)" }}>
+          <TerminalSquare size={14} />
+          real-time terminal
+          <TerminalStatus status={status} />
+        </div>
+        {(status === "closed" || status === "error") && canConnect && (
+          <Button variant="ghost" icon={Power} onClick={reconnect}>
+            reconnect
+          </Button>
+        )}
+      </div>
+
+      {!canConnect && (
+        <div className="mono" style={{ padding: "16px 14px", fontSize: 12.5, color: "var(--text-muted)" }}>
+          Terminal faqat device online va "read_write" ruxsatga ega bo'lganda ishlaydi.
+        </div>
+      )}
+      {error && (
+        <div className="mono" style={{ padding: "8px 14px", fontSize: 12, color: "var(--danger)" }}>
+          {error}
+        </div>
+      )}
+      <div ref={containerRef} style={{ padding: canConnect ? "8px 10px" : 0, height: canConnect ? 380 : 0 }} />
+    </Panel>
+  );
+}
+
+function TerminalStatus({ status }) {
+  const map = {
+    idle: { label: "idle", color: "var(--text-muted)" },
+    connecting: { label: "connecting…", color: "var(--warning)" },
+    open: { label: "connected", color: "var(--success)" },
+    closed: { label: "disconnected", color: "var(--text-muted)" },
+    error: { label: "error", color: "var(--danger)" },
+  };
+  const s = map[status] ?? map.idle;
+  return (
+    <span style={{ color: s.color, fontSize: 11 }}>· {s.label}</span>
+  );
+}

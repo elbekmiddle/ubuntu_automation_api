@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { RefreshCw, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
+import { RefreshCw, Trash2, ChevronRight } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button, StatusBadge } from "../components/ui";
 
@@ -77,8 +78,9 @@ export default function Apps() {
                     </EmptyState>
                 )}
                 {apps.map((a, i) => (
-                    <div
+                    <Link
                         key={a.id}
+                        to={`/apps/${a.id}`}
                         className="mono"
                         style={{
                             display: "flex",
@@ -87,6 +89,9 @@ export default function Apps() {
                             padding: "13px 20px",
                             borderTop: i === 0 ? "none" : "1px solid var(--border)",
                             fontSize: 12.5,
+                            color: "inherit",
+                            textDecoration: "none",
+                            cursor: "pointer",
                         }}
                     >
                         <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
@@ -107,7 +112,11 @@ export default function Apps() {
                         <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                             <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>
                             <button
-                                onClick={() => remove(a.id)}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    remove(a.id);
+                                }}
                                 title="Disconnect"
                                 className="tui-btn"
                                 style={{
@@ -125,8 +134,9 @@ export default function Apps() {
                             >
                                 <Trash2 size={13} />
                             </button>
+                            <ChevronRight size={14} color="var(--text-muted)" />
                         </div>
-                    </div>
+                    </Link>
                 ))}
             </Panel>
         </div>
