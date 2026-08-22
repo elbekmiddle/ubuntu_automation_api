@@ -45,6 +45,15 @@ export class AuditLogService {
         return rows;
     }
 
+    /** Faqat SO'ROVNI yuborayotgan brauzer/qurilmaga tegishli yozuvlar — butun server emas. */
+    async findRecentForDevice(deviceId: string, limit = 50) {
+        const { rows } = await this.db.query(
+            `SELECT * FROM audit_logs WHERE device_id = $1 ORDER BY created_at DESC LIMIT $2`,
+            [deviceId, Math.min(limit, 200)],
+        );
+        return rows;
+    }
+
     async findForResource(resourceType: string, resourceId: string) {
         const { rows } = await this.db.query(
             `SELECT * FROM audit_logs WHERE resource_type = $1 AND resource_id = $2 ORDER BY created_at DESC`,

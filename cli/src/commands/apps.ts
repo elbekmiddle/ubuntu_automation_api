@@ -5,6 +5,7 @@ import { isLoggedIn, saveAgent, readConfig } from '../config/store.js';
 import { printError, requireLogin } from '../utils/errors.js';
 import { getStaticSystemInfo } from '../agent/collect.js';
 import { runAgent } from '../agent/run.js';
+import { installAutoStart, uninstallAutoStart, isAutoStartInstalled } from '../agent/autostart.js';
 import type { App, AppPermission } from '../types.js';
 
 function statusDot(app: App): string {
@@ -96,28 +97,37 @@ export async function appCreateCommand(opts: { name?: string; yes?: boolean; per
         });
         console.log(chalk.dim(`  Agent credentials saved to ~/.screenctl/agents.json\n`));
 
+        // 1) Auto-start on boot? (faqat Linux/systemd, MVP)
+        // --yes rejimida bu savol berilmaydi — tizim xizmati o'rnatish
+        // jimgina (default) sodir bo'lmasligi kerak, faqat ochiq-oydin so'rab.
+        const wantsAutoStart = opts.yes ? false : await confirm({
+            message: 'Start automatically when this computer boots?',
+            default: true,
+        });
+
+        if (wantsAutoStart) {
+            console.log(chalk.dim('\nInstalling background service...'));
+            const result = await installAutoStart(app.id);
+            if (result.ok) {
+                console.log(chalk.green(`✓ Auto-start enabled (${result.unitName})`));
+                console.log(chalk.dim(`  This device will reconnect automatically after every reboot.\n`));
+            } else {
+                console.log(chalk.yellow(`⚠ ${result.message}\n`));
+            }
+            return;
+        }
+
+        // 2) Auto-start rad etildi — bir martalik (foreground) ishga tushirishni so'raymiz.
         const startNow =
             opts.yes ?? (await confirm({ message: 'Start the Screenctl Agent on this machine now?', default: true }));
 
         if (!startNow) {
             console.log(chalk.dim('\nTo connect this machine later, run:'));
             console.log(`  screenctl agent start --app-id ${app.id}\n`);
-            console.log(chalk.dim('To run it as a background service, use the printed command with your'));
-            console.log(chalk.dim('process manager of choice (systemd, pm2, etc.), e.g.:\n'));
-            console.log(chalk.dim('  [Unit]'));
-            console.log(chalk.dim('  Description=Screenctl Agent'));
-            console.log(chalk.dim('  After=network-online.target\n'));
-            console.log(chalk.dim('  [Service]'));
-            console.log(chalk.dim(`  ExecStart=screenctl agent start --app-id ${app.id}`));
-            console.log(chalk.dim('  Restart=always'));
-            console.log(chalk.dim('  RestartSec=5\n'));
-            console.log(chalk.dim('  [Install]'));
-            console.log(chalk.dim('  WantedBy=multi-user.target\n'));
             return;
         }
 
-        console.log(chalk.dim('\nInstalling Screenctl Agent...\n'));
-        console.log(chalk.dim('Connecting to Screenctl...'));
+        console.log(chalk.dim('\nConnecting to Screenctl...'));
         console.log(chalk.dim(`Device: ${app.name}\n`));
 
         const { stop } = runAgent({ apiUrl, appId: app.id, registrationToken });
@@ -143,6 +153,10 @@ export async function appCreateCommand(opts: { name?: string; yes?: boolean; per
 export async function appRemoveCommand(id: string): Promise<void> {
     if (!isLoggedIn()) return requireLogin();
     try {
+        if (isAutoStartInstalled(id)) {
+            await uninstallAutoStart(id);
+            console.log(chalk.dim('  Auto-start service o\'chirildi'));
+        }
         await removeApp(id);
         console.log(chalk.green(`✓ Device disconnected: ${id}`));
     } catch (err) {

@@ -39,7 +39,7 @@ export default function AuditLogs() {
   return (
     <div>
       <PageHeader
-        eyebrow={`${logs.length} recent entries`}
+        eyebrow={`${logs.length} recent entries · this device`}
         title="audit log"
         action={<Button icon={RefreshCw} onClick={load} disabled={loading}>refresh</Button>}
       />

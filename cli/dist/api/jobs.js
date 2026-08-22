@@ -1,6 +1,6 @@
 import { api } from './client.js';
-export async function createJob(templateSlug, action, args = {}) {
-    const { data } = await api.post('/jobs', { templateSlug, action, args });
+export async function createJob(templateSlug, action, args = {}, appId) {
+    const { data } = await api.post('/jobs', { templateSlug, action, args, appId });
     return data;
 }
 export async function getJob(id) {
