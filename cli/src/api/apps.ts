@@ -6,8 +6,8 @@ export async function listApps(): Promise<App[]> {
     return data;
 }
 
-export async function createApp(name: string, permission: AppPermission = 'read_write'): Promise<CreateAppResponse> {
-    const { data } = await api.post<CreateAppResponse>('/apps', { name, permission });
+export async function createApp(name: string, permission: AppPermission = 'read_write', machineId?: string): Promise<CreateAppResponse> {
+    const { data } = await api.post<CreateAppResponse>('/apps', { name, permission, machineId });
     return data;
 }
 

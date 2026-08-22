@@ -12,4 +12,9 @@ export class CreateAppDTO {
     @IsOptional()
     @IsIn(['read_only', 'read_write'])
     permission?: AppPermission;
+
+    @IsOptional()
+    @IsString()
+    @MaxLength(100)
+    machineId?: string;
 }

@@ -5,7 +5,7 @@ import { loginCommand } from './commands/login.js';
 import { registerCommand } from './commands/register.js';
 import { logoutCommand } from './commands/logout.js';
 import { whoamiCommand } from './commands/whoami.js';
-import { appsListCommand, appCreateCommand, appRemoveCommand } from './commands/apps.js';
+import { appsListCommand, appCreateCommand, appRemoveCommand, appStopCommand } from './commands/apps.js';
 import { agentStartCommand, agentListCommand } from './commands/agent.js';
 import { templatesListCommand, templatesPublicCommand } from './commands/templates.js';
 import { jobsListCommand } from './commands/jobs.js';
@@ -55,6 +55,8 @@ function buildProgram() {
         .action(async () => appsListCommand());
     app.command('remove <id>').description('Disconnect a device')
         .action(async (id) => appRemoveCommand(id));
+    app.command('stop <id>').description('Stop the background agent (and auto-start service) for a device')
+        .action(async (id) => appStopCommand(id));
     program.command('apps').description('Alias for "app list"')
         .action(async () => appsListCommand());
     const agent = program.command('agent').description('Run the Screenctl Agent on this machine');

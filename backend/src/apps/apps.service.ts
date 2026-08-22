@@ -34,14 +34,32 @@ export class AppsService {
 
     constructor(private readonly repo: AppsRepository) {}
 
-    async create(userId: string, name: string, permission: 'read_only' | 'read_write' = 'read_write') {
+    async create(
+        userId: string,
+        name: string,
+        permission: 'read_only' | 'read_write' = 'read_write',
+        machineId?: string | null,
+    ) {
         const registrationToken = generateRegistrationToken();
-        const app = await this.repo.create(userId, name, hashToken(registrationToken), permission);
+
+        // machine_id berilgan bo'lsa — bu userning shu mashinada avval
+        // yaratgan App'i bor-yo'qligini tekshiramiz. Bo'lsa — yangisini
+        // yaratmasdan, o'shani reconnect qilamiz (token yangilanadi).
+        if (machineId) {
+            const existing = await this.repo.findByUserAndMachineId(userId, machineId);
+            if (existing) {
+                const app = await this.repo.rotateToken(existing.id, hashToken(registrationToken), name, permission);
+                this.logger.log(`Reconnected existing app "${app.name}" (machine ${machineId}) for user ${userId}`);
+                return { app, registrationToken, reconnected: true as const };
+            }
+        }
+
+        const app = await this.repo.create(userId, name, hashToken(registrationToken), permission, machineId ?? null);
         this.logger.log(`Created app "${name}" (${permission}) for user ${userId}`);
 
         // registrationToken faqat SHU javobda qaytadi — DB'da faqat hash saqlanadi,
         // shuning uchun keyinroq qayta ko'rsatib bo'lmaydi.
-        return { app, registrationToken };
+        return { app, registrationToken, reconnected: false as const };
     }
 
     async findAllForUser(userId: string) {

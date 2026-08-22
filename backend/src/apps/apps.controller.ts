@@ -11,7 +11,7 @@ export class AppsController {
 
     @Post()
     create(@CurrentUser() userId: string, @Body() body: CreateAppDTO) {
-        return this.appsService.create(userId, body.name, body.permission);
+        return this.appsService.create(userId, body.name, body.permission, body.machineId);
     }
 
     @Get()

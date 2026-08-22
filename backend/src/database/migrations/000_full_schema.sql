@@ -1,5 +1,5 @@
 -- =========================================================
--- SCREENCTL — TO'LIQ SXEMA (001..007 birlashtirilgan)
+-- SCREENCTL — TO'LIQ SXEMA (001..008 birlashtirilgan)
 -- Bo'sh bazada bir marta ishga tushiring.
 -- =========================================================
 
@@ -261,4 +261,18 @@ ALTER TABLE apps ADD COLUMN IF NOT EXISTS permission TEXT NOT NULL DEFAULT 'read
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS app_id UUID REFERENCES apps(id) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS idx_jobs_app_id ON jobs(app_id);
+
+
+-- ================= 008_apps_machine_id.sql =================
+
+-- Bitta fizik mashina uchun barqaror identifikator (CLI'da ~/.screenctl/machine-id
+-- faylida saqlanadi). Shu orqali "app connect" qayta chaqirilganda (masalan
+-- credential fayl yo'qolib, lekin machine-id qolgan bo'lsa) yangi App
+-- yaratilmaydi — mavjudiga qayta ulanadi.
+ALTER TABLE apps ADD COLUMN IF NOT EXISTS machine_id TEXT;
+
+-- Global emas — bitta user ikkita machine_id'ga ega bo'lishi normal,
+-- lekin BIR xil user BIR xil machine_id bilan ikkita App yaratmasin.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_apps_user_machine_unique
+    ON apps(user_id, machine_id) WHERE machine_id IS NOT NULL;
 

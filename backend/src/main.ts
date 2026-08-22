@@ -5,6 +5,7 @@ import helmet from 'helmet';
 import * as express from 'express';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { AuthModule } from './auth/auth.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -29,11 +30,15 @@ async function bootstrap() {
       '[security] API_KEY .env da o\'rnatilmagan — barcha endpointlar hech qanday autentifikatsiyasiz ochiq.',
     );
   }
-  // Eslatma: JWT_SECRET yo'qligi haqidagi xato bu yerga yetib kelmaydi —
-  // AuthModule (JwtModule.registerAsync -> ConfigService.getOrThrow) uni
-  // NestFactory.create() bosqichida, hali shu qatorlarga yetib kelmasdan,
-  // aniq xato bilan to'xtatadi. .env.example'ga qarang.
 
+    const swaggerConfig = new DocumentBuilder()
+        .setTitle('API Key')
+        .setDescription('salom')
+        .setVersion('1.0')
+        .build();
+
+  const documentFactory = () => SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('swagger', app, documentFactory);
   const port = Number(process.env.PORT) || 3000;
   app.enableCors({
     origin: process.env.CORS_ORIGIN ?? 'http://localhost:5173',

@@ -80,6 +80,7 @@ export interface App {
     name: string;
     status: 'offline' | 'online';
     permission: AppPermission;
+    machine_id: string | null;
     last_seen_at: string | null;
     hostname: string | null;
     os_platform: string | null;
@@ -92,4 +93,5 @@ export interface App {
 export interface CreateAppResponse {
     app: App;
     registrationToken: string;
+    reconnected: boolean;
 }

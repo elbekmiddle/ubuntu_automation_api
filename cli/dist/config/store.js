@@ -1,10 +1,12 @@
 import { mkdirSync, existsSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 const SCREENCTL_DIR = join(homedir(), '.screenctl');
 const CONFIG_PATH = join(SCREENCTL_DIR, 'config.json');
 const CREDENTIALS_PATH = join(SCREENCTL_DIR, 'credentials.json');
 const AGENTS_PATH = join(SCREENCTL_DIR, 'agents.json');
+const MACHINE_ID_PATH = join(SCREENCTL_DIR, 'machine-id');
 const DEFAULT_CONFIG = {
     apiUrl: process.env.SCREENCTL_API_URL ?? 'http://localhost:3000',
 };
@@ -95,4 +97,27 @@ export function removeAgent(appId) {
     const all = readAgents();
     delete all[appId];
     writeFileSync(AGENTS_PATH, JSON.stringify(all, null, 2), { encoding: 'utf-8', mode: 0o600 });
+}
+export function updateAgentPid(appId, pid) {
+    const entry = readAgent(appId);
+    if (!entry)
+        return;
+    saveAgent({ ...entry, pid });
+}
+/**
+ * Bitta fizik mashina uchun BIR MARTA yaratiladigan barqaror identifikator.
+ * `~/.screenctl/agents.json` (tokenlar) o'chirilib qolsa ham, `machine-id`
+ * fayli saqlanib qoladi — shu orqali backend "bu qurilma allaqachon bor,
+ * yangi App yaratma, eskisiga qayta ulanaver" deb bilib oladi.
+ */
+export function getOrCreateMachineId() {
+    ensureDir();
+    if (existsSync(MACHINE_ID_PATH)) {
+        const existing = readFileSync(MACHINE_ID_PATH, 'utf-8').trim();
+        if (existing)
+            return existing;
+    }
+    const id = randomUUID();
+    writeFileSync(MACHINE_ID_PATH, id, { encoding: 'utf-8', mode: 0o600 });
+    return id;
 }

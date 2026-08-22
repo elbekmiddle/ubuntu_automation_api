@@ -8,6 +8,7 @@ export interface AppRow {
     registration_token_hash: string;
     status: 'offline' | 'online';
     permission: 'read_only' | 'read_write';
+    machine_id: string | null;
     last_seen_at: Date | null;
     hostname: string | null;
     os_platform: string | null;
@@ -26,11 +27,35 @@ export class AppsRepository {
         name: string,
         registrationTokenHash: string,
         permission: 'read_only' | 'read_write' = 'read_write',
+        machineId: string | null = null,
     ): Promise<AppRow> {
         const { rows } = await this.db.query<AppRow>(
-            `INSERT INTO apps (user_id, name, registration_token_hash, permission)
-             VALUES ($1, $2, $3, $4) RETURNING *`,
-            [userId, name, registrationTokenHash, permission],
+            `INSERT INTO apps (user_id, name, registration_token_hash, permission, machine_id)
+             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+            [userId, name, registrationTokenHash, permission, machineId],
+        );
+        return rows[0];
+    }
+
+    async findByUserAndMachineId(userId: string, machineId: string): Promise<AppRow | null> {
+        const { rows } = await this.db.query<AppRow>(
+            `SELECT * FROM apps WHERE user_id = $1 AND machine_id = $2`,
+            [userId, machineId],
+        );
+        return rows[0] ?? null;
+    }
+
+    /** Reconnect paytida — yangi registration token, nom va permission bilan yangilaydi. */
+    async rotateToken(
+        id: string,
+        registrationTokenHash: string,
+        name: string,
+        permission: 'read_only' | 'read_write',
+    ): Promise<AppRow> {
+        const { rows } = await this.db.query<AppRow>(
+            `UPDATE apps SET registration_token_hash = $2, name = $3, permission = $4, updated_at = now()
+             WHERE id = $1 RETURNING *`,
+            [id, registrationTokenHash, name, permission],
         );
         return rows[0];
     }

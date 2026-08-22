@@ -1,11 +1,12 @@
 import chalk from 'chalk';
 import { select, input, confirm } from '@inquirer/prompts';
 import { listApps, createApp, removeApp, getApp } from '../api/apps.js';
-import { isLoggedIn, saveAgent, readConfig } from '../config/store.js';
+import { isLoggedIn, saveAgent, readConfig, getOrCreateMachineId, updateAgentPid, readAgent } from '../config/store.js';
 import { printError, requireLogin } from '../utils/errors.js';
 import { getStaticSystemInfo } from '../agent/collect.js';
 import { runAgent } from '../agent/run.js';
 import { installAutoStart, uninstallAutoStart, isAutoStartInstalled } from '../agent/autostart.js';
+import { spawnDetachedAgent, isProcessAlive, stopDetachedAgent } from '../agent/daemon.js';
 import type { App, AppPermission } from '../types.js';
 
 function statusDot(app: App): string {
@@ -50,12 +51,18 @@ export async function appsListCommand(): Promise<void> {
 }
 
 /**
- * Doc'dagi "Connect this computer" flow'i:
- *  1. Device nomi so'raladi (default = shu mashinaning hostname'i)
- *  2. Permission tanlanadi (Read & Write / Read Only)
- *  3. Backendda app + registration token yaratiladi
- *  4. Token shu mashinada (~/.screenctl/agents.json) saqlanadi
- *  5. Foydalanuvchidan agentni darhol ishga tushirish so'raladi
+ * "Connect this computer" flow:
+ *  1. Device nomi so'raladi
+ *  2. Permission tanlanadi
+ *  3. Backendga shu MASHINANING machine_id'i (barqaror, mahalliy) bilan
+ *     birga POST qilinadi — agar bu user shu mashinada avval ham App
+ *     yaratgan bo'lsa, backend YANGISINI yaratmaydi, eskisini reconnect
+ *     qiladi (faqat registration token yangilanadi).
+ *  4. Token shu mashinada saqlanadi
+ *  5. Auto-start on boot? (systemd) — Yes/No, ochiq-oydin so'raladi
+ *  6. Yo'q desa — baribir agent DETACHED (background) process sifatida
+ *     ishga tushadi, ya'ni CLI'dan chiqib ketilsa ham agent o'lmaydi
+ *     (faqat shu login sessiyasi davomida — reboot'dan keyin systemd kerak).
  */
 export async function appCreateCommand(opts: { name?: string; yes?: boolean; permission?: AppPermission } = {}): Promise<void> {
     if (!isLoggedIn()) return requireLogin();
@@ -82,8 +89,15 @@ export async function appCreateCommand(opts: { name?: string; yes?: boolean; per
         }));
 
     try {
-        const { app, registrationToken } = await createApp(name, permission);
-        console.log(chalk.green(`\n✓ Device created: ${app.name}`));
+        const machineId = getOrCreateMachineId();
+        const { app, registrationToken, reconnected } = await createApp(name, permission, machineId);
+
+        if (reconnected) {
+            console.log(chalk.green(`\n✓ Reconnected to existing device: ${app.name}`));
+            console.log(chalk.dim(`  Bu mashina avval ham ulangan edi — yangi device yaratilmadi.`));
+        } else {
+            console.log(chalk.green(`\n✓ Device created: ${app.name}`));
+        }
         console.log(chalk.dim(`  Device ID: ${app.id}`));
         console.log(chalk.dim(`  Permission: ${permissionLabel(app.permission)}`));
 
@@ -111,15 +125,16 @@ export async function appCreateCommand(opts: { name?: string; yes?: boolean; per
             if (result.ok) {
                 console.log(chalk.green(`✓ Auto-start enabled (${result.unitName})`));
                 console.log(chalk.dim(`  This device will reconnect automatically after every reboot.\n`));
-            } else {
-                console.log(chalk.yellow(`⚠ ${result.message}\n`));
+                return;
             }
-            return;
+            console.log(chalk.yellow(`⚠ ${result.message}`));
+            console.log(chalk.dim('  Auto-start ishlamadi, buning o\'rniga background\'da ishga tushiramiz.\n'));
         }
 
-        // 2) Auto-start rad etildi — bir martalik (foreground) ishga tushirishni so'raymiz.
+        // 2) Auto-start yo'q (yoki muvaffaqiyatsiz) — baribir CLI yopilsa
+        // ham davom etadigan DETACHED background process qilib qo'yamiz.
         const startNow =
-            opts.yes ?? (await confirm({ message: 'Start the Screenctl Agent on this machine now?', default: true }));
+            opts.yes ?? (await confirm({ message: 'Start the Screenctl Agent now (in the background)?', default: true }));
 
         if (!startNow) {
             console.log(chalk.dim('\nTo connect this machine later, run:'));
@@ -127,36 +142,50 @@ export async function appCreateCommand(opts: { name?: string; yes?: boolean; per
             return;
         }
 
-        console.log(chalk.dim('\nConnecting to Screenctl...'));
-        console.log(chalk.dim(`Device: ${app.name}\n`));
-
-        const { stop } = runAgent({ apiUrl, appId: app.id, registrationToken });
-        console.log(chalk.dim('Agent is running in the foreground. Press Ctrl+C to stop.\n'));
-
-        let shuttingDown = false;
-        const shutdown = async () => {
-            if (shuttingDown) return;
-            shuttingDown = true;
-            console.log(chalk.dim('\nStopping agent...'));
-            await stop();
-            process.exit(0);
-        };
-        process.on('SIGINT', shutdown);
-        process.on('SIGTERM', shutdown);
-        await new Promise(() => {});
+        const pid = spawnDetachedAgent(app.id);
+        if (pid) {
+            updateAgentPid(app.id, pid);
+            console.log(chalk.green(`✓ Agent started in background (pid ${pid})`));
+            console.log(chalk.dim(`  Terminalni yopsangiz ham agent ishlashda davom etadi.`));
+            console.log(chalk.dim(`  To'xtatish uchun: screenctl app stop ${app.id}\n`));
+        } else {
+            console.log(chalk.yellow('⚠ Background process boshlanmadi.'));
+        }
     } catch (err) {
         printError(err);
         process.exitCode = 1;
     }
 }
 
+/** Detached (background) agent process'ni to'xtatadi — o'rnatilgan bo'lsa systemd'ni ham. */
+export async function appStopCommand(id: string): Promise<void> {
+    let stopped = false;
+
+    if (isAutoStartInstalled(id)) {
+        await uninstallAutoStart(id);
+        console.log(chalk.dim('Auto-start service o\'chirildi'));
+        stopped = true;
+    }
+
+    const saved = readAgent(id);
+    if (saved?.pid && isProcessAlive(saved.pid)) {
+        stopDetachedAgent(saved.pid);
+        updateAgentPid(id, undefined);
+        console.log(chalk.dim(`Background process (pid ${saved.pid}) to'xtatildi`));
+        stopped = true;
+    }
+
+    if (stopped) {
+        console.log(chalk.green(`✓ Agent to'xtatildi: ${id}`));
+    } else {
+        console.log(chalk.dim(`"${id}" uchun ishlab turgan agent topilmadi (allaqachon to'xtagan bo'lishi mumkin).`));
+    }
+}
+
 export async function appRemoveCommand(id: string): Promise<void> {
     if (!isLoggedIn()) return requireLogin();
     try {
-        if (isAutoStartInstalled(id)) {
-            await uninstallAutoStart(id);
-            console.log(chalk.dim('  Auto-start service o\'chirildi'));
-        }
+        await appStopCommand(id);
         await removeApp(id);
         console.log(chalk.green(`✓ Device disconnected: ${id}`));
     } catch (err) {
@@ -178,6 +207,7 @@ async function deviceDetail(app: App): Promise<void> {
         console.log(`${statusDot(app)} ${app.status === 'online' ? 'ONLINE' : 'OFFLINE'}\n`);
         if (app.os_platform) console.log(`${app.os_platform} ${app.os_release ?? ''}`.trim());
         console.log(`Permission     ${permissionLabel(app.permission)}`);
+        console.log(`Auto-start     ${isAutoStartInstalled(app.id) ? chalk.green('Enabled') : chalk.dim('Disabled')}`);
         console.log(`Last heartbeat ${timeAgo(app.last_seen_at)}`);
 
         const metrics = app.last_metrics as { cpu?: number; memory?: { usedPercent?: number }; disk?: { usedPercent?: number } | null };
