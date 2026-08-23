@@ -1,4 +1,7 @@
-export const API_BASE = "https://screen-api.honeymedia.uz";
+export const API_BASE =
+    import.meta.env.VITE_API_URL || "https://screen-api.honeymedia.uz";
+
+const API_KEY = import.meta.env.VITE_API_KEY;
 
 const ACCESS_KEY = "screenctl:access-token";
 const REFRESH_KEY = "screenctl:refresh-token";
@@ -6,67 +9,146 @@ const REFRESH_KEY = "screenctl:refresh-token";
 export function getAccessToken() {
   return localStorage.getItem(ACCESS_KEY);
 }
+
 export function getRefreshToken() {
   return localStorage.getItem(REFRESH_KEY);
 }
+
 export function setTokens({ accessToken, refreshToken }) {
-  if (accessToken) localStorage.setItem(ACCESS_KEY, accessToken);
-  if (refreshToken) localStorage.setItem(REFRESH_KEY, refreshToken);
+  if (accessToken) {
+    localStorage.setItem(ACCESS_KEY, accessToken);
+  }
+
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_KEY, refreshToken);
+  }
 }
+
 export function clearTokens() {
   localStorage.removeItem(ACCESS_KEY);
   localStorage.removeItem(REFRESH_KEY);
 }
 
-// AuthProvider shu eventni tinglab, refresh muvaffaqiyatsiz bo'lganda user holatini tozalaydi.
+// AuthProvider shu eventni tinglab,
+// refresh muvaffaqiyatsiz bo'lganda user holatini tozalaydi.
 function emitLoggedOut() {
   window.dispatchEvent(new Event("screenctl:logged-out"));
 }
 
 let refreshPromise = null;
 
+/**
+ * Backend API uchun umumiy headerlar.
+ *
+ * X-API-Key:
+ *   VITE_API_KEY mavjud bo'lsa yuboriladi.
+ *
+ * Authorization:
+ *   Access token mavjud bo'lsa yuboriladi.
+ */
+function getApiHeaders(extraHeaders = {}) {
+  const headers = {
+    "Content-Type": "application/json",
+    ...extraHeaders,
+  };
+
+  if (API_KEY) {
+    headers["X-API-Key"] = API_KEY;
+  }
+
+  return headers;
+}
+
+/**
+ * Access token bilan request headerlarini tayyorlaydi.
+ */
+function getRequestHeaders(extraHeaders = {}) {
+  const headers = getApiHeaders(extraHeaders);
+
+  const accessToken = getAccessToken();
+
+  if (accessToken) {
+    headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  return headers;
+}
+
+/**
+ * Refresh token orqali access tokenni yangilash.
+ *
+ * Bir vaqtning o'zida bir nechta request 401 qaytarsa,
+ * faqat bitta refresh request yuboriladi.
+ */
 async function tryRefresh() {
   const refreshToken = getRefreshToken();
-  if (!refreshToken) return false;
 
-  // Bir vaqtda bir nechta 401 kelsa ham faqat bitta refresh so'rovi yuborilishi uchun
+  if (!refreshToken) {
+    return false;
+  }
+
   if (!refreshPromise) {
     refreshPromise = fetch(`${API_BASE}/auth/refresh`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refreshToken }),
+      headers: getApiHeaders(),
+      body: JSON.stringify({
+        refreshToken,
+      }),
     })
-      .then(async (res) => {
-        if (!res.ok) return null;
-        return res.json();
-      })
-      .finally(() => {
-        refreshPromise = null;
-      });
+        .then(async (res) => {
+          const text = await res.text();
+
+          let data = null;
+
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch {
+              data = null;
+            }
+          }
+
+          if (!res.ok) {
+            return null;
+          }
+
+          return data;
+        })
+        .finally(() => {
+          refreshPromise = null;
+        });
   }
 
   const data = await refreshPromise;
+
   if (!data?.accessToken) {
     clearTokens();
     emitLoggedOut();
     return false;
   }
+
   setTokens(data);
+
   return true;
 }
 
+/**
+ * Asosiy API request funksiyasi.
+ */
 async function request(path, opts = {}, _retried = false) {
-  const accessToken = getAccessToken();
-  const headers = { "Content-Type": "application/json", ...(opts.headers || {}) };
-  if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  const headers = getRequestHeaders(opts.headers || {});
 
-  const res = await fetch(`${API_BASE}${path}`, { ...opts, headers });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...opts,
+    headers,
+  });
 
-  // Javob tanasini avval matn sifatida o'qiymiz — 204 yoki bo'sh 200 (masalan
-  // DELETE endpointlari) kelganda to'g'ridan-to'g'ri res.json() chaqirish
-  // "Unexpected end of JSON input" xatosini berardi.
+  // Response body'ni avval text sifatida o'qiymiz.
+  // Bu 204 yoki bo'sh 200 response'larda JSON parse xatosini oldini oladi.
   const text = await res.text();
+
   let data = null;
+
   if (text) {
     try {
       data = JSON.parse(text);
@@ -75,99 +157,278 @@ async function request(path, opts = {}, _retried = false) {
     }
   }
 
-  if (res.status === 401 && !_retried && !path.startsWith("/auth/") && getRefreshToken()) {
+  /**
+   * Access token expired bo'lsa:
+   *
+   * 1. refresh token orqali yangi token olamiz
+   * 2. original request'ni qayta yuboramiz
+   */
+  if (
+      res.status === 401 &&
+      !_retried &&
+      !path.startsWith("/auth/") &&
+      getRefreshToken()
+  ) {
     const refreshed = await tryRefresh();
-    if (refreshed) return request(path, opts, true);
+
+    if (refreshed) {
+      return request(path, opts, true);
+    }
   }
 
   if (!res.ok) {
-    const message = data?.message || `${res.status} ${res.statusText}`;
-    throw new Error(Array.isArray(message) ? message.join(", ") : message);
+    const message =
+        data?.message || `${res.status} ${res.statusText}`;
+
+    throw new Error(
+        Array.isArray(message)
+            ? message.join(", ")
+            : message
+    );
   }
+
   return data;
 }
 
 export const api = {
+  // ============================================================
+  // AUTH
+  // ============================================================
+
   auth: {
     register: (email, password, name) =>
-      request("/auth/register", { method: "POST", body: JSON.stringify({ email, password, name }) }),
+        request("/auth/register", {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            password,
+            name,
+          }),
+        }),
+
     login: (email, password) =>
-      request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
+        request("/auth/login", {
+          method: "POST",
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }),
+
     logout: () => {
       const refreshToken = getRefreshToken();
+
       clearTokens();
-      if (!refreshToken) return Promise.resolve({ loggedOut: true });
-      return request("/auth/logout", { method: "POST", body: JSON.stringify({ refreshToken }) }).catch(() => ({}));
+
+      if (!refreshToken) {
+        return Promise.resolve({
+          loggedOut: true,
+        });
+      }
+
+      return request("/auth/logout", {
+        method: "POST",
+        body: JSON.stringify({
+          refreshToken,
+        }),
+      }).catch(() => ({}));
     },
+
     me: () => request("/auth/me"),
   },
+
+  // ============================================================
+  // SYSTEM
+  // ============================================================
+
   system: {
     overview: () => request("/system"),
   },
+
+  // ============================================================
+  // TEMPLATES
+  // ============================================================
+
   templates: {
-    list: () => request("/templates"),
+    list: () =>
+        request("/templates"),
+
     get: async (id) => {
       const all = await request("/templates");
+
       const found = all.find((t) => t.id === id);
-      if (!found) throw new Error(`Template "${id}" not found`);
+
+      if (!found) {
+        throw new Error(`Template "${id}" not found`);
+      }
+
       return found;
     },
-    public: (q = "") => request(`/templates/public${q ? `?q=${encodeURIComponent(q)}` : ""}`),
+
+    public: (q = "") =>
+        request(
+            `/templates/public${
+                q ? `?q=${encodeURIComponent(q)}` : ""
+            }`
+        ),
+
     setVisibility: (id, isPublic) =>
-      request(`/templates/${id}/visibility`, { method: "PUT", body: JSON.stringify({ isPublic }) }),
-    sync: () => request("/templates/sync", { method: "POST" }),
-    create: (payload) =>
-      request("/templates", { method: "POST", body: JSON.stringify(payload) }),
-    files: {
-      list: (id) => request(`/templates/${id}/files`),
-      read: (id, fileName) => request(`/templates/${id}/files/${fileName}`),
-      write: (id, fileName, content) =>
-        request(`/templates/${id}/files/${fileName}`, {
+        request(`/templates/${id}/visibility`, {
           method: "PUT",
-          body: JSON.stringify({ content }),
+          body: JSON.stringify({
+            isPublic,
+          }),
         }),
+
+    sync: () =>
+        request("/templates/sync", {
+          method: "POST",
+        }),
+
+    create: (payload) =>
+        request("/templates", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        }),
+
+    files: {
+      list: (id) =>
+          request(`/templates/${id}/files`),
+
+      read: (id, fileName) =>
+          request(`/templates/${id}/files/${fileName}`),
+
+      write: (id, fileName, content) =>
+          request(`/templates/${id}/files/${fileName}`, {
+            method: "PUT",
+            body: JSON.stringify({
+              content,
+            }),
+          }),
     },
+
     versions: {
-      list: (id) => request(`/templates/${id}/versions`),
+      list: (id) =>
+          request(`/templates/${id}/versions`),
+
       restore: (id, version) =>
-        request(`/templates/${id}/versions/${version}/restore`, { method: "POST" }),
+          request(
+              `/templates/${id}/versions/${version}/restore`,
+              {
+                method: "POST",
+              }
+          ),
     },
   },
+
+  // ============================================================
+  // JOBS
+  // ============================================================
+
   jobs: {
-    list: (page = 1, limit = 10) => request(`/jobs?page=${page}&limit=${limit}`),
-    get: (id) => request(`/jobs/${id}`),
-    logs: (id) => request(`/jobs/${id}/logs`),
+    list: (page = 1, limit = 10) =>
+        request(
+            `/jobs?page=${page}&limit=${limit}`
+        ),
+
+    get: (id) =>
+        request(`/jobs/${id}`),
+
+    logs: (id) =>
+        request(`/jobs/${id}/logs`),
+
     create: (templateSlug, action, args = {}) =>
-      request("/jobs", {
-        method: "POST",
-        body: JSON.stringify({ templateSlug, action, args }),
-      }),
+        request("/jobs", {
+          method: "POST",
+          body: JSON.stringify({
+            templateSlug,
+            action,
+            args,
+          }),
+        }),
   },
+
+  // ============================================================
+  // SCHEDULES
+  // ============================================================
+
   schedules: {
-    list: () => request("/schedules"),
-    create: (templateSlug, action, cron, args = {}) =>
-      request("/schedules", {
-        method: "POST",
-        body: JSON.stringify({ templateSlug, action, cron, args }),
-      }),
+    list: () =>
+        request("/schedules"),
+
+    create: (
+        templateSlug,
+        action,
+        cron,
+        args = {}
+    ) =>
+        request("/schedules", {
+          method: "POST",
+          body: JSON.stringify({
+            templateSlug,
+            action,
+            cron,
+            args,
+          }),
+        }),
+
     setEnabled: (id, enabled) =>
-      request(`/schedules/${id}/enabled`, {
-        method: "PATCH",
-        body: JSON.stringify({ enabled }),
-      }),
-    remove: (id) => request(`/schedules/${id}`, { method: "DELETE" }),
+        request(`/schedules/${id}/enabled`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            enabled,
+          }),
+        }),
+
+    remove: (id) =>
+        request(`/schedules/${id}`, {
+          method: "DELETE",
+        }),
   },
+
+  // ============================================================
+  // DEVICES
+  // ============================================================
+
   devices: {
-    list: () => request("/devices"),
-    activeCount: () => request("/devices/active-count"),
+    list: () =>
+        request("/devices"),
+
+    activeCount: () =>
+        request("/devices/active-count"),
   },
+
+  // ============================================================
+  // APPS
+  // ============================================================
+
   apps: {
-    list: () => request("/apps"),
-    get: (id) => request(`/apps/${id}`),
-    create: (name) => request("/apps", { method: "POST", body: JSON.stringify({ name }) }),
-    remove: (id) => request(`/apps/${id}`, { method: "DELETE" }),
+    list: () =>
+        request("/apps"),
+
+    get: (id) =>
+        request(`/apps/${id}`),
+
+    create: (name) =>
+        request("/apps", {
+          method: "POST",
+          body: JSON.stringify({
+            name,
+          }),
+        }),
+
+    remove: (id) =>
+        request(`/apps/${id}`, {
+          method: "DELETE",
+        }),
   },
+
+  // ============================================================
+  // AUDIT LOGS
+  // ============================================================
+
   auditLogs: {
-    list: (limit = 50) => request(`/audit-logs?limit=${limit}`),
+    list: (limit = 50) =>
+        request(`/audit-logs?limit=${limit}`),
   },
 };
