@@ -1,4 +1,4 @@
-export const API_BASE = "http://localhost:3000";
+export const API_BASE = "https://screen-api.honeymedia.uz";
 
 const ACCESS_KEY = "screenctl:access-token";
 const REFRESH_KEY = "screenctl:refresh-token";
