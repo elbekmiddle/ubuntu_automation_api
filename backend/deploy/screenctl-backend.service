@@ -1,0 +1,44 @@
+# /etc/systemd/system/screenctl-backend.service
+#
+# O'rnatish:
+#   sudo cp screenctl-backend.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now screenctl-backend
+#
+# Loglar:  journalctl -u screenctl-backend -f
+# Holat:   systemctl status screenctl-backend
+
+[Unit]
+Description=Screenctl backend (NestJS)
+After=network-online.target
+Wants=network-online.target
+# Agar Postgres/Redis shu serverda bo'lsa, quyidagilarni oching:
+# After=network-online.target postgresql.service redis-server.service
+# Wants=network-online.target postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=screenctl
+Group=screenctl
+WorkingDirectory=/opt/screenctl/backend
+EnvironmentFile=/etc/screenctl/backend.env
+ExecStart=/usr/bin/node dist/main.js
+Restart=always
+RestartSec=3
+
+# Ko'p bir vaqtdagi WebSocket ulanishlari (agentlar + terminal
+# sessiyalari) uchun fayl deskriptor limitini oshiramiz.
+LimitNOFILE=65536
+
+# --- Xavfsizlik cheklovlari ------------------------------------------------
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# `templates-storage/` (job script'lari) va build artefaktlariga yozish
+# kerak bo'lgan yagona joy — shuning uchun aynan shu papka ochiq qoldiriladi,
+# ProtectSystem=strict esa qolgan hamma joyni read-only qiladi.
+ReadWritePaths=/opt/screenctl/backend
+
+[Install]
+WantedBy=multi-user.target
