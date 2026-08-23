@@ -5,12 +5,43 @@ services:
       POSTGRES_USER: automation
       POSTGRES_PASSWORD: automation
       POSTGRES_DB: automation_platform
-    ports: ["5432:5432"]
-    volumes: ["pg_data:/var/lib/postgresql/data"]
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
-    ports: ["6379:6379"]
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+
+      DATABASE_URL: postgresql://automation:automation@postgres:5433/automation_platform
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6380
+
+      JWT_SECRET: CHANGE_ME_RANDOM_64_HEX_CHARS
+      JWT_EXPIRES_IN: 1d
+
+      API_KEY: CHANGE_ME_RANDOM_API_KEY
+
+      CORS_ORIGIN: https://screenctl.honeymedia.uz/
+      TRUST_PROXY: "true"
+
+    ports:
+      - "5000:5000"
+
+    depends_on:
+      - postgres
+      - redis
 
 volumes:
   pg_data:

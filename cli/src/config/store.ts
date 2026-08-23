@@ -33,7 +33,7 @@ const AGENTS_PATH = join(SCREENCTL_DIR, 'agents.json');
 const MACHINE_ID_PATH = join(SCREENCTL_DIR, 'machine-id');
 
 const DEFAULT_CONFIG: Config = {
-    apiUrl: process.env.SCREENCTL_API_URL ?? 'http://localhost:3000',
+    apiUrl: process.env.SCREENCTL_API_URL ?? 'https://screen-api.honeymedia.uz',
 };
 
 function ensureDir(): void {

@@ -6,7 +6,7 @@ const CONFIG_DIR = path.join(os.homedir(), '.screenctl');
 const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 const DEFAULTS = {
-  apiUrl: process.env.SCREENCTL_API_URL || 'http://localhost:3000',
+  apiUrl: process.env.SCREENCTL_API_URL || 'https://screen-api.honeymedia.uz',
   accessToken: null,
   refreshToken: null,
   email: null,
