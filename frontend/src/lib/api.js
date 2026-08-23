@@ -1,7 +1,5 @@
 export const API_BASE =
-    import.meta.env.VITE_API_URL || "https://screen-api.honeymedia.uz";
-
-const API_KEY = import.meta.env.VITE_API_KEY;
+    import.meta.env.VITE_API_URL || "http://localhost:3000";
 
 const ACCESS_KEY = "screenctl:access-token";
 const REFRESH_KEY = "screenctl:refresh-token";
@@ -40,23 +38,15 @@ let refreshPromise = null;
 /**
  * Backend API uchun umumiy headerlar.
  *
- * X-API-Key:
- *   VITE_API_KEY mavjud bo'lsa yuboriladi.
- *
  * Authorization:
- *   Access token mavjud bo'lsa yuboriladi.
+ *   Access token mavjud bo'lsa yuboriladi. Autentifikatsiya to'liq
+ *   JWT (access/refresh token) orqali — statik API key endi yo'q.
  */
 function getApiHeaders(extraHeaders = {}) {
-  const headers = {
+  return {
     "Content-Type": "application/json",
     ...extraHeaders,
   };
-
-  if (API_KEY) {
-    headers["X-API-Key"] = API_KEY;
-  }
-
-  return headers;
 }
 
 /**

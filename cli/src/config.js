@@ -10,10 +10,6 @@ const DEFAULTS = {
       process.env.SCREENCTL_API_URL ||
       'https://screen-api.honeymedia.uz',
 
-  apiKey:
-      process.env.SCREENCTL_API_KEY ||
-      null,
-
   accessToken: null,
   refreshToken: null,
   email: null,
@@ -94,10 +90,6 @@ function getApiUrl() {
   return load().apiUrl;
 }
 
-function getApiKey() {
-  return load().apiKey;
-}
-
 module.exports = {
   CONFIG_FILE,
   load,
@@ -105,5 +97,4 @@ module.exports = {
   setTokens,
   clearTokens,
   getApiUrl,
-  getApiKey,
 };

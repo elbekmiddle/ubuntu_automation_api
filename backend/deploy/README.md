@@ -46,10 +46,10 @@ bo'lishi kerak.)
 ```bash
 sudo mkdir -p /etc/screenctl
 sudo cp backend.env.example /etc/screenctl/backend.env
-sudo nano /etc/screenctl/backend.env   # DATABASE_URL, JWT_SECRET, API_KEY, CORS_ORIGIN to'ldiring
+sudo nano /etc/screenctl/backend.env   # DATABASE_URL, JWT_SECRET, CORS_ORIGIN to'ldiring
 
-# Kuchli qiymatlar generatsiya qilish uchun:
-openssl rand -hex 32   # JWT_SECRET va API_KEY uchun ikki marta ishlating
+# Kuchli qiymat generatsiya qilish uchun:
+openssl rand -hex 32   # JWT_SECRET uchun ishlating
 
 sudo chown root:screenctl /etc/screenctl/backend.env
 sudo chmod 640 /etc/screenctl/backend.env

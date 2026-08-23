@@ -31,8 +31,6 @@ services:
       JWT_SECRET: CHANGE_ME_RANDOM_64_HEX_CHARS
       JWT_EXPIRES_IN: 1d
 
-      API_KEY: CHANGE_ME_RANDOM_API_KEY
-
       CORS_ORIGIN: https://screenctl.honeymedia.uz/
       TRUST_PROXY: "true"
 

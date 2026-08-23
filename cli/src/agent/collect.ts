@@ -188,10 +188,84 @@ async function collectPortsNow(): Promise<PortInfo[] | null> {
     }
 }
 
+/** Linux'da `free -b` orqali swap holatini oladi; boshqa platformalarda yoki topilmasa `null`. */
+async function getSwap(): Promise<{ total: number; used: number; usedPercent: number } | null> {
+    try {
+        const { stdout } = await execAsync('free -b');
+        const line = stdout.split('\n').find((l) => l.toLowerCase().startsWith('swap'));
+        if (!line) return null;
+        const parts = line.trim().split(/\s+/);
+        // Swap:  total  used  free
+        const total = Number(parts[1]);
+        const used = Number(parts[2]);
+        if (!Number.isFinite(total) || total <= 0) return { total: 0, used: 0, usedPercent: 0 };
+        return {
+            total,
+            used,
+            usedPercent: Math.round((used / total) * 10000) / 100,
+        };
+    } catch {
+        return null;
+    }
+}
+
+export interface DockerStatus {
+    installed: boolean;
+    engineRunning: boolean;
+    running: boolean;
+    version: string | null;
+    containers: Array<{ ID: string; Names: string; State: string; Ports: string }>;
+}
+
+/**
+ * Docker holatini tekshiradi — o'rnatilmagan yoki daemon ishlamayotgan
+ * bo'lsa xatoni yutib, shunchaki `installed:false`/`engineRunning:false`
+ * qaytaradi (agent hech qachon shu sabab yiqilmasligi kerak).
+ */
+async function getDocker(): Promise<DockerStatus> {
+    const empty: DockerStatus = { installed: false, engineRunning: false, running: false, version: null, containers: [] };
+    try {
+        const { stdout: versionOut } = await execAsync('docker version --format "{{.Server.Version}}" 2>/dev/null');
+        const version = versionOut.trim() || null;
+        if (!version) return empty;
+
+        try {
+            const { stdout } = await execAsync(
+                `docker ps --format "{{.ID}}|{{.Names}}|{{.State}}|{{.Ports}}"`,
+            );
+            const containers = stdout
+                .trim()
+                .split('\n')
+                .filter(Boolean)
+                .map((line) => {
+                    const [ID, Names, State, Ports] = line.split('|');
+                    return { ID, Names, State: State ?? 'running', Ports: Ports ?? '' };
+                });
+            return {
+                installed: true,
+                engineRunning: true,
+                running: containers.length > 0,
+                version,
+                containers,
+            };
+        } catch {
+            // docker CLI bor, lekin daemon'ga ulanib bo'lmadi (masalan
+            // ishlamayapti yoki user dockerd guruhida emas).
+            return { installed: true, engineRunning: false, running: false, version, containers: [] };
+        }
+    } catch {
+        return empty;
+    }
+}
+
 export interface HeartbeatMetrics {
     cpu: number;
+    cores: number;
+    arch: string;
     memory: ReturnType<typeof getMemory>;
+    swap: { total: number; used: number; usedPercent: number } | null;
     disk: { total: number; used: number; usedPercent: number } | null;
+    docker: DockerStatus;
     loadavg: number[];
     uptime: number;
     ports: PortInfo[] | null;
@@ -199,7 +273,12 @@ export interface HeartbeatMetrics {
 }
 
 export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
-    const [cpu, disk] = await Promise.all([getCpuPercent(), getDisk()]);
+    const [cpu, disk, swap, docker] = await Promise.all([
+        getCpuPercent(),
+        getDisk(),
+        getSwap(),
+        getDocker(),
+    ]);
 
     // Portlarni har bir heartbeatda emas, har ~3-heartbeatda (taxminan 60s)
     // yangilaymiz — `ss` chaqirish CPU'ga og'irroq, tez-tez shart emas.
@@ -210,8 +289,12 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
 
     return {
         cpu,
+        cores: os.cpus().length,
+        arch: os.arch(),
         memory: getMemory(),
+        swap,
         disk,
+        docker,
         loadavg: os.loadavg(),
         uptime: os.uptime(),
         ports: portsCache,

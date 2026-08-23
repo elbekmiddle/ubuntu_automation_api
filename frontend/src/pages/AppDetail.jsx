@@ -7,6 +7,8 @@ import {
     Cpu,
     MemoryStick,
     HardDrive,
+    ArrowDownUp,
+    Container,
     Clock,
     Server,
     Shield,
@@ -170,6 +172,25 @@ export default function AppDetail() {
                     value={metrics.disk ? `${metrics.disk.usedPercent}%` : "—"}
                     sub={metrics.disk ? `${fmtBytes(metrics.disk.used)} / ${fmtBytes(metrics.disk.total)}` : null}
                     pct={metrics.disk?.usedPercent}
+                />
+                <MetricPanel
+                    icon={ArrowDownUp}
+                    label="Swap"
+                    value={metrics.swap ? `${metrics.swap.usedPercent}%` : "—"}
+                    sub={metrics.swap ? `${fmtBytes(metrics.swap.used)} / ${fmtBytes(metrics.swap.total)}` : null}
+                    pct={metrics.swap?.usedPercent}
+                />
+                <MetricPanel
+                    icon={Container}
+                    label="Docker"
+                    value={metrics.docker?.installed ? `${metrics.docker.containers.length}` : "—"}
+                    sub={
+                        !metrics.docker?.installed
+                            ? "not installed"
+                            : metrics.docker.engineRunning
+                            ? "engine operational"
+                            : "engine offline"
+                    }
                 />
                 <MetricPanel
                     icon={Clock}

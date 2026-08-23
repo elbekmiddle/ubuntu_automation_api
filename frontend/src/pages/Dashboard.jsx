@@ -239,7 +239,7 @@ function DockerSpec({
         docker?.containers?.length ?? 0;
 
     const running =
-        Boolean(docker?.running);
+        Boolean(docker?.engineRunning);
 
     return (
         <Panel
@@ -327,7 +327,9 @@ function DockerSpec({
                     color: "var(--text-muted)",
                 }}
             >
-                {containers === 0
+                {!docker?.installed
+                    ? "docker not installed"
+                    : containers === 0
                     ? "no containers"
                     : `${containers} ${
                         containers === 1
@@ -514,7 +516,7 @@ function MiniStat({ label, pct }) {
     );
 }
 
-function DeviceCard({ app, className }) {
+function DeviceCard({ app, className, selected, onSelect }) {
     const online = app.status === "online";
     const metrics = app.last_metrics ?? {};
     const cpuPct = metrics.cpu;
@@ -524,11 +526,14 @@ function DeviceCard({ app, className }) {
     return (
         <Panel
             className={className}
+            onClick={onSelect}
             style={{
                 padding: 18,
                 flex: "1 1 220px",
                 minWidth: 220,
                 boxSizing: "border-box",
+                cursor: onSelect ? "pointer" : undefined,
+                borderColor: selected ? "var(--accent, var(--text))" : undefined,
             }}
         >
             <div
@@ -591,14 +596,14 @@ function DeviceCard({ app, className }) {
    ========================================================= */
 
 export default function Dashboard() {
-    const [system, setSystem] =
-        useState(null);
-
     const [jobs, setJobs] =
         useState([]);
 
     const [apps, setApps] =
         useState([]);
+
+    const [selectedAppId, setSelectedAppId] =
+        useState(null);
 
     const [loading, setLoading] =
         useState(false);
@@ -612,14 +617,12 @@ export default function Dashboard() {
             setError(null);
 
             try {
-                const [sys, jb, ap] =
+                const [jb, ap] =
                     await Promise.all([
-                        api.system.overview(),
                         api.jobs.list(1, 6),
                         api.apps.list().catch(() => []),
                     ]);
 
-                setSystem(sys);
                 setJobs(jb.data);
                 setApps(ap);
             } catch (e) {
@@ -647,23 +650,71 @@ export default function Dashboard() {
             clearInterval(id);
     }, [load, pollMs]);
 
+    // Hardware panel har doim BITTA ulangan device'ning (foydalanuvchi
+    // kirgan/ro'yxatdan o'tkazgan mashinaning) statistikasini ko'rsatadi —
+    // avval bu yerda backend serverning o'zining CPU/RAM/disk holati
+    // (`/system`) chiqib turardi, bu chalkash edi. Endi `apps` ro'yxatidan
+    // tanlangan (yoki birinchi online) device'ning `last_metrics`i olinadi.
+    useEffect(() => {
+        if (apps.length === 0) {
+            if (selectedAppId !== null) setSelectedAppId(null);
+            return;
+        }
+
+        const stillExists = apps.some((a) => a.id === selectedAppId);
+        if (stillExists) return;
+
+        const firstOnline = apps.find((a) => a.status === "online");
+        setSelectedAppId((firstOnline ?? apps[0]).id);
+    }, [apps, selectedAppId]);
+
+    const selectedApp =
+        apps.find((a) => a.id === selectedAppId) ?? null;
+
+    const metrics =
+        selectedApp?.last_metrics ?? {};
+
     const cpu =
-        system?.cpu;
-
-    const mem =
-        system?.memory;
-
-    const disk =
-        system?.disk?.[0];
-
-    const os =
-        system?.os;
+        metrics.cpu != null
+            ? { currentLoad: metrics.cpu, cores: metrics.cores }
+            : null;
 
     const ram =
-        mem?.ram;
+        metrics.memory
+            ? {
+                usedPercent: metrics.memory.usedPercent,
+                used: metrics.memory.used,
+                total: metrics.memory.total,
+            }
+            : null;
 
     const swap =
-        mem?.swap;
+        metrics.swap
+            ? {
+                usedPercent: metrics.swap.usedPercent,
+                used: metrics.swap.used,
+                total: metrics.swap.total,
+            }
+            : null;
+
+    const disk =
+        metrics.disk
+            ? {
+                usePercent: metrics.disk.usedPercent,
+                used: metrics.disk.used,
+                size: metrics.disk.total,
+            }
+            : null;
+
+    const os =
+        selectedApp?.hostname
+            ? {
+                distro: selectedApp.os_platform ?? "unknown",
+                release: selectedApp.os_release ?? "",
+                arch: metrics.arch ?? "",
+                kernel: metrics.kernel ?? selectedApp.os_release ?? "",
+            }
+            : null;
 
     return (
         <div>
@@ -711,9 +762,24 @@ export default function Dashboard() {
                ================================================= */}
 
             <SectionLabel index="01">
-                hardware
+                hardware{selectedApp ? ` — ${selectedApp.name}` : ""}
             </SectionLabel>
 
+            {!selectedApp && (
+                <Panel style={{ marginBottom: 36 }}>
+                    <EmptyState>
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+                            <MonitorSmartphone size={18} color="var(--text-muted)" />
+                            <span>no device connected yet</span>
+                            <span className="mono" style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                run <code>screenctl app connect</code> on a machine to see its hardware here
+                            </span>
+                        </div>
+                    </EmptyState>
+                </Panel>
+            )}
+
+            {selectedApp && (
             <div
                 className="spec-grid"
                 style={{
@@ -828,10 +894,11 @@ export default function Dashboard() {
                 <DockerSpec
                     className="fade-in-up stagger-5"
                     docker={
-                        system?.docker
+                        metrics.docker
                     }
                 />
             </div>
+            )}
 
             {/* =================================================
                 CONNECTED DEVICES
@@ -865,7 +932,13 @@ export default function Dashboard() {
                         }}
                     >
                         {apps.map((a) => (
-                            <DeviceCard key={a.id} app={a} className="fade-in-up" />
+                            <DeviceCard
+                                key={a.id}
+                                app={a}
+                                className="fade-in-up"
+                                selected={a.id === selectedAppId}
+                                onSelect={() => setSelectedAppId(a.id)}
+                            />
                         ))}
                     </div>
                 )}
@@ -935,7 +1008,7 @@ export default function Dashboard() {
                 RUNNING CONTAINERS
                ================================================= */}
 
-            {system?.docker
+            {metrics.docker
                 ?.containers?.length > 0 && (
                 <div className="fade-in-up stagger-6">
                     <SectionLabel index="04">
@@ -947,7 +1020,7 @@ export default function Dashboard() {
                             marginBottom: 36,
                         }}
                     >
-                        {system.docker.containers.map(
+                        {metrics.docker.containers.map(
                             (c, i) => (
                                 <div
                                     key={c.ID}

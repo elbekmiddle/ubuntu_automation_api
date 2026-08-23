@@ -6,7 +6,6 @@ let refreshing = null;
 async function tryRefresh() {
   const {
     apiUrl,
-    apiKey,
     refreshToken,
   } = config.load();
 
@@ -19,12 +18,6 @@ async function tryRefresh() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-
-        ...(apiKey
-            ? {
-              'X-API-Key': apiKey,
-            }
-            : {}),
       },
       body: JSON.stringify({
         refreshToken,
@@ -62,7 +55,6 @@ async function request(
 ) {
   const {
     apiUrl,
-    apiKey,
     accessToken,
   } = config.load();
 
@@ -71,11 +63,6 @@ async function request(
 
     ...(opts.headers || {}),
   };
-
-  // Backend ApiKeyGuard uchun
-  if (apiKey) {
-    headers['X-API-Key'] = apiKey;
-  }
 
   // User authentication uchun
   if (accessToken) {
