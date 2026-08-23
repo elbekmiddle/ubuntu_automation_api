@@ -1,6 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, RefreshCw, Trash2, Cpu, MemoryStick, HardDrive, Clock, Server, Shield } from "lucide-react";
+import {
+    ChevronLeft,
+    RefreshCw,
+    Trash2,
+    Cpu,
+    MemoryStick,
+    HardDrive,
+    Clock,
+    Server,
+    Shield,
+    Plug,
+} from "lucide-react";
 import { api } from "../lib/api";
 import { jitteredInterval } from "../lib/jitter";
 import { PageHeader, SectionLabel, Panel, StatusBadge, Button, AsciiBar } from "../components/ui";
@@ -168,7 +179,46 @@ export default function AppDetail() {
                 />
             </div>
 
-            <SectionLabel index="03">terminal</SectionLabel>
+            <SectionLabel index="03">ports</SectionLabel>
+            <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
+                {!metrics.ports && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline ? "Port ma'lumoti hali kelmadi…" : "Device offline — port ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.ports?.length === 0 && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        Tinglovchi (listening) port topilmadi.
+                    </div>
+                )}
+                {metrics.ports?.map((p, i) => (
+                    <div
+                        key={`${p.proto}:${p.port}`}
+                        className="mono"
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "10px 20px",
+                            borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                            fontSize: 12.5,
+                        }}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                            <Plug size={13} color="var(--text-secondary)" />
+                            <span style={{ fontWeight: 600 }}>{p.port}</span>
+                            <span style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: 11 }}>
+                                {p.proto}
+                            </span>
+                        </div>
+                        <span style={{ color: "var(--text-muted)" }}>
+                            {p.process ? `${p.process}${p.pid ? ` (pid ${p.pid})` : ""}` : p.address}
+                        </span>
+                    </div>
+                ))}
+            </Panel>
+
+            <SectionLabel index="04">terminal</SectionLabel>
             <div style={{ marginBottom: 32 }}>
                 <DeviceTerminal appId={app.id} canConnect={canConnect} />
             </div>

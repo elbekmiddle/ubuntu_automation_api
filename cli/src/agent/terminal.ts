@@ -1,14 +1,33 @@
 import type { Socket } from 'socket.io-client';
 import * as os from 'node:os';
-import type { IPty } from 'node-pty';
 
-// `node-pty` ixtiyoriy (native) dependency — build muhitida compile bo'lmasa
-// ham agent umuman ishlashda davom etsin, faqat terminal feature o'chirilgan
-// bo'ladi. Shuning uchun dynamic import() va try/catch ichida (ESM'da
-// require() ishlatib bo'lmaydi).
-let ptyModule: typeof import('node-pty') | null = null;
+// Bizga kerak bo'lgan minimal interfeys — 'node-pty' paketining o'z type
+// deklaratsiyalaridan import qilmaymiz. Shunda paket hali `npm install`
+// qilinmagan yoki native build muvaffaqiyatsiz bo'lgan holatda ham
+// `tsc` xatosiz kompilyatsiya bo'ladi (build butunlay to'xtab qolmaydi).
+interface PtyProcess {
+    readonly pid: number;
+    onData(callback: (data: string) => void): void;
+    onExit(callback: (event: { exitCode: number; signal?: number }) => void): void;
+    write(data: string): void;
+    resize(cols: number, rows: number): void;
+    kill(): void;
+}
+
+interface PtyModule {
+    spawn(file: string, args: string[], options: Record<string, unknown>): PtyProcess;
+}
+
+let ptyModule: PtyModule | null = null;
 try {
-    ptyModule = await import('node-pty');
+    // Modul nomini o'zgaruvchiga chiqarib olamiz — shunda TypeScript
+    // `import()`ning satr argumentini compile vaqtida statik tekshirmaydi
+    // (aks holda paket umuman o'rnatilmagan bo'lsa ham build butunlay
+    // to'xtab qolardi). Runtime'da modul topilmasa shu yerda xato
+    // tashlanadi va biz uni catch qilib, terminalni "mavjud emas"
+    // holatiga o'tkazamiz (agent umuman ishlashda davom etadi).
+    const moduleName = 'node-pty';
+    ptyModule = (await import(moduleName)) as unknown as PtyModule;
 } catch {
     ptyModule = null;
 }
@@ -43,7 +62,7 @@ interface TerminalClosePayload {
  * NOPASSWD sozlamasi shu userga bog'liq.
  */
 export function registerTerminalHandlers(socket: Socket, log: (line: string) => void): () => void {
-    const sessions = new Map<string, IPty>();
+    const sessions = new Map<string, PtyProcess>();
 
     function shellCommand(): { file: string; args: string[] } {
         if (process.platform === 'win32') {
@@ -60,7 +79,7 @@ export function registerTerminalHandlers(socket: Socket, log: (line: string) => 
             socket.emit('terminal:output', {
                 sessionId,
                 data:
-                    '\r\n\x1b[31mReal-time terminal ushbu qurilmada ishlamaydi: "node-pty" o\'rnatilmagan.\x1b[0m\r\n' +
+                    '\r\n\x1b[31mReal-time terminal ushbu qurilmada ishlamaydi: "node-pty" o\'rnatilmagan yoki compile bo\'lmagan.\x1b[0m\r\n' +
                     'Agent papkasida ishga tushiring: npm install\r\n',
             });
             socket.emit('terminal:exit', { sessionId, exitCode: 1 });

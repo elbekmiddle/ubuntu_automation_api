@@ -1,11 +1,14 @@
 import * as os from 'node:os';
-// `node-pty` ixtiyoriy (native) dependency — build muhitida compile bo'lmasa
-// ham agent umuman ishlashda davom etsin, faqat terminal feature o'chirilgan
-// bo'ladi. Shuning uchun dynamic import() va try/catch ichida (ESM'da
-// require() ishlatib bo'lmaydi).
 let ptyModule = null;
 try {
-    ptyModule = await import('node-pty');
+    // Modul nomini o'zgaruvchiga chiqarib olamiz — shunda TypeScript
+    // `import()`ning satr argumentini compile vaqtida statik tekshirmaydi
+    // (aks holda paket umuman o'rnatilmagan bo'lsa ham build butunlay
+    // to'xtab qolardi). Runtime'da modul topilmasa shu yerda xato
+    // tashlanadi va biz uni catch qilib, terminalni "mavjud emas"
+    // holatiga o'tkazamiz (agent umuman ishlashda davom etadi).
+    const moduleName = 'node-pty';
+    ptyModule = (await import(moduleName));
 }
 catch {
     ptyModule = null;
@@ -33,7 +36,7 @@ export function registerTerminalHandlers(socket, log) {
         if (!ptyModule) {
             socket.emit('terminal:output', {
                 sessionId,
-                data: '\r\n\x1b[31mReal-time terminal ushbu qurilmada ishlamaydi: "node-pty" o\'rnatilmagan.\x1b[0m\r\n' +
+                data: '\r\n\x1b[31mReal-time terminal ushbu qurilmada ishlamaydi: "node-pty" o\'rnatilmagan yoki compile bo\'lmagan.\x1b[0m\r\n' +
                     'Agent papkasida ishga tushiring: npm install\r\n',
             });
             socket.emit('terminal:exit', { sessionId, exitCode: 1 });

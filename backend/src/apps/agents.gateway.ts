@@ -1,7 +1,6 @@
 import {
   ConnectedSocket,
   MessageBody,
-  OnGatewayConnection,
   OnGatewayDisconnect,
   SubscribeMessage,
   WebSocketGateway,
@@ -9,7 +8,6 @@ import {
 } from '@nestjs/websockets';
 import { Logger } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
-
 import { AppsService } from './apps.service';
 import { JobsRepository } from '../jobs/jobs.repository';
 import { RedisPubSubService } from '../redis/redis-pubsub.service';
@@ -47,7 +45,7 @@ interface JobCompletePayload {
   exitCode: number | null;
 }
 
-// ---------- Terminal ----------
+// ---------- Terminal (real-time shell) ----------
 
 interface TerminalOutputPayload {
   sessionId: string;
@@ -61,303 +59,113 @@ interface TerminalExitPayload {
 
 const MAX_LOG_CHUNK = 8000;
 
-@WebSocketGateway({
-  namespace: '/agents',
-  cors: {
-    origin: '*',
-  },
-})
-export class AgentsGateway
-    implements OnGatewayConnection, OnGatewayDisconnect
-{
+@WebSocketGateway({ namespace: '/agents', cors: { origin: '*' } })
+export class AgentsGateway implements OnGatewayDisconnect {
   private readonly logger = new Logger(AgentsGateway.name);
 
-  /**
-   * socket.id -> appId
-   *
-   * Qaysi socket qaysi app'ga tegishli ekanini aniqlash uchun.
-   */
-  private readonly connectedAgents = new Map<string, string>();
-
-  /**
-   * appId -> Socket
-   *
-   * App'ga command yuborish va connection holatini tekshirish uchun.
-   */
-  private readonly agentSockets = new Map<string, Socket>();
+  // Ulangan socket'larni appId bo'yicha kuzatib boramiz.
+  private readonly connectedAgents = new Map<string, string>(); // socket.id -> appId
 
   @WebSocketServer()
-  server!: Server;
+  server: Server;
 
   constructor(
-      private readonly appsService: AppsService,
-      private readonly jobsRepo: JobsRepository,
-      private readonly pubsub: RedisPubSubService,
+    private readonly appsService: AppsService,
+    private readonly jobsRepo: JobsRepository,
+    private readonly pubsub: RedisPubSubService,
   ) {}
-
-  // --------------------------------------------------
-  // Connection lifecycle
-  // --------------------------------------------------
-
-  handleConnection(client: Socket) {
-    this.logger.log(`Agent socket connected: socket=${client.id}`);
-  }
-
-  async handleDisconnect(client: Socket) {
-    const appId = this.connectedAgents.get(client.id);
-
-    if (!appId) {
-      this.logger.debug(
-          `Unregistered agent socket disconnected: socket=${client.id}`,
-      );
-      return;
-    }
-
-    this.connectedAgents.delete(client.id);
-
-    /**
-     * Muhim:
-     *
-     * Agar shu app yangi socket bilan reconnect qilgan bo'lsa,
-     * eski socket disconnect bo'lganda app'ni offline qilmaymiz.
-     */
-    const currentSocket = this.agentSockets.get(appId);
-
-    if (!currentSocket || currentSocket.id !== client.id) {
-      this.logger.log(
-          `Old agent socket disconnected: app=${appId}, socket=${client.id}`,
-      );
-      return;
-    }
-
-    this.agentSockets.delete(appId);
-
-    try {
-      await this.appsService.markOffline(appId);
-    } catch (error) {
-      this.logger.error(
-          `Failed to mark app offline: app=${appId}`,
-          error instanceof Error ? error.stack : String(error),
-      );
-    }
-
-    /**
-     * TerminalGateway shu eventni Redis orqali oladi
-     * va shu app'ga tegishli terminal sessionlarni yopadi.
-     */
-    this.pubsub.publish(`agent:${appId}:offline`, {});
-
-    this.logger.log(
-        `Agent disconnected: app=${appId}, socket=${client.id}, now offline`,
-    );
-  }
-
-  // --------------------------------------------------
-  // Agent registration
-  // --------------------------------------------------
 
   @SubscribeMessage('register')
   async handleRegister(
-      @MessageBody() payload: RegisterPayload,
-      @ConnectedSocket() client: Socket,
+    @MessageBody() payload: RegisterPayload,
+    @ConnectedSocket() client: Socket,
   ) {
     try {
       const app = await this.appsService.authenticateAgent(
-          payload.appId,
-          payload.registrationToken,
+        payload.appId,
+        payload.registrationToken,
       );
-
       await this.appsService.markOnline(app.id, {
         hostname: payload.hostname,
         osPlatform: payload.osPlatform,
         osRelease: payload.osRelease,
       });
 
-      /**
-       * Agar shu app oldin boshqa socket bilan ulangan bo'lsa,
-       * eski socketni disconnect qilamiz.
-       *
-       * Bu reconnect scenario uchun muhim.
-       */
-      const previousSocket = this.agentSockets.get(app.id);
-
-      if (previousSocket && previousSocket.id !== client.id) {
-        this.connectedAgents.delete(previousSocket.id);
-
-        this.logger.log(
-            `Replacing previous agent connection: ` +
-            `app=${app.id}, ` +
-            `oldSocket=${previousSocket.id}, ` +
-            `newSocket=${client.id}`,
-        );
-
-        previousSocket.disconnect(true);
-      }
-
-      /**
-       * Yangi connection'ni registry'ga qo'shamiz.
-       */
       this.connectedAgents.set(client.id, app.id);
-      this.agentSockets.set(app.id, client);
-
-      /**
-       * Room bu yerda faqat Socket.IO grouping uchun.
-       * Connection state endi room orqali tekshirilmaydi.
-       */
       client.join(`app:${app.id}`);
 
       this.logger.log(
-          `Agent registered: app=${app.id} ` +
-          `(${payload.hostname ?? 'unknown host'})`,
+        `Agent registered: app=${app.id} (${payload.hostname ?? 'unknown host'})`,
       );
-
-      return {
-        event: 'registered',
-        data: {
-          appId: app.id,
-          status: 'online',
-        },
-      };
-    } catch (error) {
-      this.logger.warn(
-          `Agent registration failed: ${
-              error instanceof Error ? error.message : String(error)
-          }`,
-      );
-
+      return { event: 'registered', data: { appId: app.id, status: 'online' } };
+    } catch (err) {
+      this.logger.warn(`Agent registration failed: ${(err as Error).message}`);
       client.disconnect(true);
-
-      return {
-        event: 'error',
-        data: {
-          message: 'Registration failed',
-        },
-      };
+      return { event: 'error', data: { message: 'Registration failed' } };
     }
   }
-
-  // --------------------------------------------------
-  // Connection state
-  // --------------------------------------------------
-
-  isAppConnected(appId: string): boolean {
-    return this.agentSockets.has(appId);
-  }
-
-  private getAgentSocket(appId: string): Socket | null {
-    return this.agentSockets.get(appId) ?? null;
-  }
-
-  /**
-   * Agent'ga event yuborish uchun yagona helper.
-   */
-  private emitToAgent(
-      appId: string,
-      event: string,
-      payload: unknown,
-  ): boolean {
-    const socket = this.agentSockets.get(appId);
-
-    if (!socket) {
-      this.logger.warn(
-          `Cannot emit "${event}": agent is not connected, app=${appId}`,
-      );
-
-      return false;
-    }
-
-    this.logger.debug(
-        `Sending "${event}" -> app=${appId}, socket=${socket.id}`,
-    );
-
-    socket.emit(event, payload);
-
-    return true;
-  }
-
-  // --------------------------------------------------
-  // Heartbeat
-  // --------------------------------------------------
 
   @SubscribeMessage('heartbeat')
   async handleHeartbeat(
-      @MessageBody() payload: HeartbeatPayload,
-      @ConnectedSocket() client: Socket,
+    @MessageBody() payload: HeartbeatPayload,
+    @ConnectedSocket() client: Socket,
   ) {
     const appId = this.connectedAgents.get(client.id);
-
     if (!appId) {
       return {
         event: 'error',
-        data: {
-          message: 'Not registered — send "register" first',
-        },
+        data: { message: 'Not registered — send "register" first' },
       };
     }
-
-    /**
-     * Faqat current socket heartbeat yuborayotganiga ishonch hosil qilamiz.
-     */
-    const currentSocket = this.agentSockets.get(appId);
-
-    if (!currentSocket || currentSocket.id !== client.id) {
-      return {
-        event: 'error',
-        data: {
-          message: 'Connection is no longer active',
-        },
-      };
-    }
-
     await this.appsService.heartbeat(appId, payload);
-
     return {
       event: 'heartbeat-ack',
-      data: {
-        receivedAt: new Date().toISOString(),
-      },
+      data: { receivedAt: new Date().toISOString() },
     };
   }
 
-  // --------------------------------------------------
-  // Jobs
-  // --------------------------------------------------
+  // ---------- Job execution (Agentga marshrutlangan job'lar) ----------
 
-  /**
-   * JobsService shu metod orqali agentga job yuboradi.
-   */
-  dispatchJob(appId: string, payload: JobRunPayload): boolean {
-    const sent = this.emitToAgent(appId, 'job:run', payload);
-
-    if (sent) {
-      this.logger.log(
-          `Dispatched job ${payload.jobId} ` +
-          `(${payload.action}) -> app=${appId}`,
-      );
-    }
-
-    return sent;
+  /** JobsService bu metodni chaqiradi — script'ni shu appId ulangan agentga yuboradi. */
+  isAppConnected(appId: string): boolean {
+    // Diqqat: `@WebSocketGateway({ namespace: '/agents' })` ishlatilgani
+    // uchun bu yerga inject qilingan `server` aslida socket.io'ning
+    // Namespace obyekti (root Server emas) — shu sababli xonalar
+    // to'g'ridan-to'g'ri `server.adapter.rooms`da turadi, `server.sockets`
+    // orqali emas (`server.sockets` bu yerda faqat ulangan socketlar Map'i,
+    // uning `.adapter`si yo'q — shuning uchun oldingi kod undefined'ga
+    // urilib xato berardi).
+    //
+    // TypeScript tarafida esa `@WebSocketServer() server: Server` deb
+    // e'lon qilingani uchun `.adapter` xossasi emas, `Server.adapter()`
+    // metodi (adapter klassini o'rnatish uchun) ko'rinadi — shuning uchun
+    // runtime'dagi haqiqiy Namespace shaklini alohida tasvirlab, xavfsiz
+    // cast qilamiz.
+    const namespace = this.server as unknown as {
+      adapter: { rooms: Map<string, Set<string>> };
+    };
+    return namespace.adapter.rooms.has(`app:${appId}`);
   }
 
-  private truncate(value: string): string {
-    return value.length > MAX_LOG_CHUNK
-        ? value.slice(0, MAX_LOG_CHUNK) + '\n…[truncated]'
-        : value;
+  dispatchJob(appId: string, payload: JobRunPayload): void {
+    this.server.to(`app:${appId}`).emit('job:run', payload);
+    this.logger.log(
+      `Dispatched job ${payload.jobId} (${payload.action}) -> app=${appId}`,
+    );
+  }
+
+  private truncate(s: string): string {
+    return s.length > MAX_LOG_CHUNK
+      ? s.slice(0, MAX_LOG_CHUNK) + '\n…[truncated]'
+      : s;
   }
 
   @SubscribeMessage('job:log')
   async handleJobLog(@MessageBody() payload: JobLogPayload) {
     const chunk = this.truncate(payload.chunk);
-
     await this.jobsRepo
-        .appendLog(payload.jobId, payload.stream, chunk)
-        .catch((error) => {
-          this.logger.error(
-              `Failed to append job log: job=${payload.jobId}`,
-              error instanceof Error ? error.stack : String(error),
-          );
-        });
-
+      .appendLog(payload.jobId, payload.stream, chunk)
+      .catch((e) => this.logger.error(e));
     this.pubsub.publish(`job:${payload.jobId}:log`, {
       stream: payload.stream,
       chunk,
@@ -368,123 +176,69 @@ export class AgentsGateway
   @SubscribeMessage('job:complete')
   async handleJobComplete(@MessageBody() payload: JobCompletePayload) {
     const status = payload.exitCode === 0 ? 'success' : 'failed';
-
     await this.jobsRepo
-        .markFinished(payload.jobId, status, payload.exitCode)
-        .catch((error) => {
-          this.logger.error(
-              `Failed to mark job finished: job=${payload.jobId}`,
-              error instanceof Error ? error.stack : String(error),
-          );
-        });
-
+      .markFinished(payload.jobId, status, payload.exitCode)
+      .catch((e) => this.logger.error(e));
     this.pubsub.publish(`job:${payload.jobId}:status`, {
       status,
       exitCode: payload.exitCode,
     });
-
     this.logger.log(
-        `Job ${payload.jobId} finished remotely: ` +
-        `${status} (exit ${payload.exitCode})`,
+      `Job ${payload.jobId} finished remotely: ${status} (exit ${payload.exitCode})`,
     );
   }
 
-  // --------------------------------------------------
-  // Terminal
-  // --------------------------------------------------
-
-  /**
-   * TerminalGateway chaqiradi.
-   */
-  openTerminal(
-      appId: string,
-      sessionId: string,
-      cols = 80,
-      rows = 24,
-  ): boolean {
-    return this.emitToAgent(appId, 'terminal:start', {
-      sessionId,
-      cols,
-      rows,
-    });
+  async handleDisconnect(client: Socket) {
+    const appId = this.connectedAgents.get(client.id);
+    if (appId) {
+      this.connectedAgents.delete(client.id);
+      await this.appsService.markOffline(appId);
+      // TerminalGateway shu kanalni tinglab, shu appga tegishli barcha
+      // ochiq terminal sessiyalarini yopadi (agent uzilib qoldi).
+      this.pubsub.publish(`agent:${appId}:offline`, {});
+      this.logger.log(`Agent disconnected: app=${appId}, now offline`);
+    }
   }
 
-  sendTerminalInput(
-      appId: string,
-      sessionId: string,
-      data: string,
-  ): boolean {
-    return this.emitToAgent(appId, 'terminal:input', {
-      sessionId,
-      data,
-    });
+  // ---------- Terminal (real-time shell, TerminalGateway orqali frontend'ga ulanadi) ----------
+
+  /** TerminalGateway chaqiradi — agentga yangi interaktiv shell sessiyasini ochishni buyuradi. */
+  openTerminal(appId: string, sessionId: string, cols = 80, rows = 24): void {
+    this.server
+      .to(`app:${appId}`)
+      .emit('terminal:start', { sessionId, cols, rows });
+  }
+
+  sendTerminalInput(appId: string, sessionId: string, data: string): void {
+    this.server.to(`app:${appId}`).emit('terminal:input', { sessionId, data });
   }
 
   resizeTerminal(
-      appId: string,
-      sessionId: string,
-      cols: number,
-      rows: number,
-  ): boolean {
-    return this.emitToAgent(appId, 'terminal:resize', {
-      sessionId,
-      cols,
-      rows,
-    });
+    appId: string,
+    sessionId: string,
+    cols: number,
+    rows: number,
+  ): void {
+    this.server
+      .to(`app:${appId}`)
+      .emit('terminal:resize', { sessionId, cols, rows });
   }
 
-  closeTerminal(appId: string, sessionId: string): boolean {
-    return this.emitToAgent(appId, 'terminal:close', {
-      sessionId,
-    });
+  closeTerminal(appId: string, sessionId: string): void {
+    this.server.to(`app:${appId}`).emit('terminal:close', { sessionId });
   }
 
-  // --------------------------------------------------
-  // Terminal output from agent
-  // --------------------------------------------------
-
+  /** Agentdan real-vaqtli shell chiqishi (stdout/stderr aralash, pty bitta oqim). */
   @SubscribeMessage('terminal:output')
-  handleTerminalOutput(
-      @MessageBody() payload: TerminalOutputPayload,
-      @ConnectedSocket() client: Socket,
-  ) {
-    const appId = this.connectedAgents.get(client.id);
-
-    if (!appId) {
-      return;
-    }
-
-    /**
-     * Faqat current active socket terminal output yuborishi mumkin.
-     */
-    const currentSocket = this.agentSockets.get(appId);
-
-    if (!currentSocket || currentSocket.id !== client.id) {
-      return;
-    }
-
+  handleTerminalOutput(@MessageBody() payload: TerminalOutputPayload) {
     this.pubsub.publish(`term:${payload.sessionId}:data`, {
       data: payload.data,
     });
   }
 
+  /** Agentdagi shell process tugaganda (masalan `exit` yozilsa). */
   @SubscribeMessage('terminal:exit')
-  handleTerminalExit(
-      @MessageBody() payload: TerminalExitPayload,
-      @ConnectedSocket() client: Socket,
-  ) {
-    const appId = this.connectedAgents.get(client.id);
-
-    if (!appId) {
-      return;
-    }
-
-    const currentSocket = this.agentSockets.get(appId);
-
-    if (!currentSocket || currentSocket.id !== client.id) {
-      return;
-    }
-
+  handleTerminalExit(@MessageBody() payload: TerminalExitPayload) {
     this.pubsub.publish(`term:${payload.sessionId}:exit`, {
       exitCode: payload.exitCode,
     });

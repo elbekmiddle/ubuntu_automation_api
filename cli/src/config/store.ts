@@ -2,6 +2,7 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, chmodSync } from 'n
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { machineIdSync } from 'node-machine-id';
 
 export interface Config {
     apiUrl: string;
@@ -145,7 +146,18 @@ export function getOrCreateMachineId(): string {
         const existing = readFileSync(MACHINE_ID_PATH, 'utf-8').trim();
         if (existing) return existing;
     }
-    const id = randomUUID();
+    let id: string;
+    try {
+        // Haqiqiy OS darajasidagi barqaror ID (Linux: /etc/machine-id,
+        // macOS: IOPlatformUUID, Windows: registry GUID) — SHA-256 bilan
+        // xeshlangan holda. Bu ~/.screenctl papkasi o'chirilib qolsa ham
+        // (masalan home directory tozalansa) bir xil qiymatni beradi.
+        id = machineIdSync(true);
+    } catch {
+        // Ba'zi konteyner/cheklangan muhitlarda o'qib bo'lmasligi mumkin —
+        // shunday holatda ilgarigidek random UUID'ga tushamiz.
+        id = randomUUID();
+    }
     writeFileSync(MACHINE_ID_PATH, id, { encoding: 'utf-8', mode: 0o600 });
     return id;
 }

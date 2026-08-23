@@ -45,19 +45,49 @@ export default function DeviceTerminal({ appId, canConnect }) {
     const fit = new FitAddon();
     term.loadAddon(fit);
     term.open(containerRef.current);
-    fit.fit();
+
+    // Birinchi `fit()`ni requestAnimationFrame ichida chaqiramiz — DOM
+    // layout tugagandan keyin ishlasin. Bu xterm.js'ning o'z ichki
+    // ResizeObserver'i bilan poyga holatini kamaytiradi: React
+    // StrictMode ostida bu effect ikki marta (mount→cleanup→mount)
+    // ishga tushganda, birinchi instansning dispose()i ikkinchisining
+    // fit/resize callback'lari bilan to'qnashib "this._renderer.value is
+    // undefined" xatosini berishi mumkin edi.
+    const rafId = requestAnimationFrame(() => {
+      try {
+        fit.fit();
+      } catch {
+        // Terminal shu orada allaqachon dispose bo'lgan bo'lishi mumkin — e'tiborsiz qoldiramiz.
+      }
+    });
 
     xtermRef.current = term;
     fitRef.current = fit;
 
-    const onResize = () => fit.fit();
+    const onResize = () => {
+      try {
+        fit.fit();
+      } catch {
+        // xterm allaqachon dispose bo'lgan bo'lishi mumkin.
+      }
+    };
     window.addEventListener("resize", onResize);
 
     return () => {
+      cancelAnimationFrame(rafId);
       window.removeEventListener("resize", onResize);
-      term.dispose();
       xtermRef.current = null;
       fitRef.current = null;
+      // dispose()ni keyingi macrotaskka suramiz — xterm.js ichidagi
+      // pending ResizeObserver/rAF callback'lari birinchi ulgurib
+      // bajarilsin, shundan keyingina terminal butunlay yo'q qilinadi.
+      setTimeout(() => {
+        try {
+          term.dispose();
+        } catch {
+          // allaqachon dispose bo'lgan bo'lishi mumkin.
+        }
+      }, 0);
     };
   }, []);
 
@@ -73,8 +103,12 @@ export default function DeviceTerminal({ appId, canConnect }) {
       const sessionId = sessionIdRef.current;
       if (socket && sessionId) {
         socket.emit("terminal:close", { sessionId });
+      }
+      if (socket) {
         socket.off("terminal:data", onData);
         socket.off("terminal:exit", onExit);
+        socket.off("connect_error", onConnectError);
+        socket.off("disconnect", onDisconnect);
       }
       sessionIdRef.current = null;
     }
@@ -90,6 +124,19 @@ export default function DeviceTerminal({ appId, canConnect }) {
       sessionIdRef.current = null;
     }
 
+    function onConnectError(err) {
+      if (disposed) return;
+      setStatus("error");
+      setError(`Ulanib bo'lmadi: ${err?.message ?? "server javob bermayapti"}`);
+    }
+
+    function onDisconnect(reason) {
+      if (disposed) return;
+      sessionIdRef.current = null;
+      setStatus("error");
+      setError(`Ulanish uzildi (${reason})`);
+    }
+
     function open() {
       const socket = connectClientSocket();
       socketRef.current = socket;
@@ -100,11 +147,30 @@ export default function DeviceTerminal({ appId, canConnect }) {
       const rows = term.rows;
 
       const doOpen = () => {
-        socket.emit("terminal:open", { appId, cols, rows }, (ack) => {
-          if (disposed) return;
+        // Ack 8 soniyada kelmasa — cheksiz "connecting" holatida qolib
+        // ketmaslik uchun aniq xato ko'rsatamiz (masalan token yaroqsiz
+        // bo'lib socket handshake vaqtida disconnect qilingan bo'lishi mumkin).
+        socket.timeout(8000).emit("terminal:open", { appId, cols, rows }, (timeoutErr, ack) => {
+          if (timeoutErr) {
+            if (!disposed) {
+              setStatus("error");
+              setError("Server javob bermadi (timeout) — qurilma agenti ishlayaptimi, tekshiring.");
+            }
+            return;
+          }
           if (!ack || ack.event === "terminal:error") {
-            setStatus("error");
-            setError(ack?.data?.message ?? "Terminal ochilmadi");
+            if (!disposed) {
+              setStatus("error");
+              setError(ack?.data?.message ?? "Terminal ochilmadi");
+            }
+            return;
+          }
+          if (disposed) {
+            // Bu effect allaqachon tozalangan (masalan React StrictMode'ning
+            // mount→cleanup→mount tsikli) — server ulgurib sessiya ochib
+            // qo'ygan bo'lsa, darhol yopamiz, aks holda agentda "osilib
+            // qolgan" pty process qoladi.
+            socket.emit("terminal:close", { sessionId: ack.data.sessionId });
             return;
           }
           sessionIdRef.current = ack.data.sessionId;
@@ -116,6 +182,8 @@ export default function DeviceTerminal({ appId, canConnect }) {
       if (socket.connected) doOpen();
       else socket.once("connect", doOpen);
 
+      socket.on("connect_error", onConnectError);
+      socket.on("disconnect", onDisconnect);
       socket.on("terminal:data", onData);
       socket.on("terminal:exit", onExit);
     }
@@ -146,7 +214,12 @@ export default function DeviceTerminal({ appId, canConnect }) {
     setError(null);
     const term = xtermRef.current;
     const send = () =>
-      socket.emit("terminal:open", { appId, cols: term.cols, rows: term.rows }, (ack) => {
+      socket.timeout(8000).emit("terminal:open", { appId, cols: term.cols, rows: term.rows }, (timeoutErr, ack) => {
+        if (timeoutErr) {
+          setStatus("error");
+          setError("Server javob bermadi (timeout) — qurilma agenti ishlayaptimi, tekshiring.");
+          return;
+        }
         if (!ack || ack.event === "terminal:error") {
           setStatus("error");
           setError(ack?.data?.message ?? "Terminal ochilmadi");

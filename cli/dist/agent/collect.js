@@ -67,13 +67,110 @@ async function getDisk() {
         return null;
     }
 }
+/**
+ * `ss -tulnp` chiqishini parslaydi. Process nomi/PID faqat shu agent qaysi
+ * user nomidan ishga tushirilgan bo'lsa o'sha userga tegishli socketlar
+ * uchun ko'rinadi (root emas — kernel shunday cheklaydi); qolganlari uchun
+ * process/pid `null` qaytadi, lekin port/protokol baribir ko'rinadi.
+ */
+function parseSsOutput(stdout) {
+    const lines = stdout.trim().split('\n').slice(1); // header qatorini tashlab yuboramiz
+    const byKey = new Map();
+    for (const line of lines) {
+        const cols = line.trim().split(/\s+/);
+        if (cols.length < 5)
+            continue;
+        const proto = cols[0].toLowerCase().startsWith('udp') ? 'udp' : 'tcp';
+        const localAddr = cols[4];
+        const lastColon = localAddr.lastIndexOf(':');
+        if (lastColon === -1)
+            continue;
+        const address = localAddr.slice(0, lastColon).replace(/^\[|\]$/g, '');
+        const port = Number(localAddr.slice(lastColon + 1));
+        if (!Number.isFinite(port))
+            continue;
+        let processName = null;
+        let pid = null;
+        const procMatch = line.match(/users:\(\("([^"]+)",pid=(\d+)/);
+        if (procMatch) {
+            processName = procMatch[1];
+            pid = Number(procMatch[2]);
+        }
+        // Bir xil port bir nechta interfeysda (0.0.0.0, ::, 127.0.0.1) ko'rinishi
+        // mumkin — bittasiga birlashtiramiz, lekin process ma'lumoti bo'lgan
+        // yozuvni ustun qo'yamiz.
+        const key = `${proto}:${port}`;
+        const existing = byKey.get(key);
+        if (!existing || (!existing.process && processName)) {
+            byKey.set(key, { proto, port, address, process: processName, pid });
+        }
+    }
+    return [...byKey.values()].sort((a, b) => a.port - b.port);
+}
+/** `netstat -tulnp` chiqishini parslaydi (fallback, `ss` topilmasa). */
+function parseNetstatOutput(stdout) {
+    const byKey = new Map();
+    for (const line of stdout.split('\n')) {
+        const cols = line.trim().split(/\s+/);
+        if (cols.length < 4 || !/^(tcp|udp)/i.test(cols[0]))
+            continue;
+        const proto = cols[0].toLowerCase().startsWith('udp') ? 'udp' : 'tcp';
+        const localAddr = cols[3];
+        const lastColon = localAddr.lastIndexOf(':');
+        if (lastColon === -1)
+            continue;
+        const address = localAddr.slice(0, lastColon).replace(/^\[|\]$/g, '');
+        const port = Number(localAddr.slice(lastColon + 1));
+        if (!Number.isFinite(port))
+            continue;
+        const pidProgram = cols[cols.length - 1];
+        let processName = null;
+        let pid = null;
+        const match = pidProgram.match(/^(\d+)\/(.+)$/);
+        if (match) {
+            pid = Number(match[1]);
+            processName = match[2];
+        }
+        const key = `${proto}:${port}`;
+        const existing = byKey.get(key);
+        if (!existing || (!existing.process && processName)) {
+            byKey.set(key, { proto, port, address, process: processName, pid });
+        }
+    }
+    return [...byKey.values()].sort((a, b) => a.port - b.port);
+}
+let portsCache = null;
+let heartbeatCounter = 0;
+/** `ss` ko'pchilik Linux distributivlarida bor; bo'lmasa `netstat`ga tushamiz. */
+async function collectPortsNow() {
+    try {
+        const { stdout } = await execAsync('ss -tulnp 2>/dev/null');
+        return parseSsOutput(stdout);
+    }
+    catch {
+        try {
+            const { stdout } = await execAsync('netstat -tulnp 2>/dev/null');
+            return parseNetstatOutput(stdout);
+        }
+        catch {
+            return null;
+        }
+    }
+}
 export async function collectHeartbeatMetrics() {
     const [cpu, disk] = await Promise.all([getCpuPercent(), getDisk()]);
+    // Portlarni har bir heartbeatda emas, har ~3-heartbeatda (taxminan 60s)
+    // yangilaymiz — `ss` chaqirish CPU'ga og'irroq, tez-tez shart emas.
+    heartbeatCounter++;
+    if (portsCache === null || heartbeatCounter % 3 === 1) {
+        portsCache = await collectPortsNow();
+    }
     return {
         cpu,
         memory: getMemory(),
         disk,
         loadavg: os.loadavg(),
         uptime: os.uptime(),
+        ports: portsCache,
     };
 }
