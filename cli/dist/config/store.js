@@ -2,7 +2,8 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, chmodSync } from 'n
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { machineIdSync } from 'node-machine-id';
+import machineId from 'node-machine-id';
+const { machineIdSync } = machineId;
 const SCREENCTL_DIR = join(homedir(), '.screenctl');
 const CONFIG_PATH = join(SCREENCTL_DIR, 'config.json');
 const CREDENTIALS_PATH = join(SCREENCTL_DIR, 'credentials.json');

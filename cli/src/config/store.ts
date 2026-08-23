@@ -2,7 +2,9 @@ import { mkdirSync, existsSync, readFileSync, writeFileSync, chmodSync } from 'n
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { machineIdSync } from 'node-machine-id';
+import  machineId  from 'node-machine-id';
+
+const { machineIdSync } = machineId;
 
 export interface Config {
     apiUrl: string;
