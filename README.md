@@ -58,9 +58,15 @@ Ushbu ro'yxat brainstorm suhbatidan (Screenctl'ni Microsoft/Apple/startup'larga 
 - [x] Real-time terminal (PTY orqali, WebSocket stream, `TerminalGateway`)
 - [x] Statik `X-API-Key`ni olib tashlash — endi to'liq JWT + DB registration token
 - [x] Dashboard'dagi **"[01] hardware" xatosi tuzatildi** — avval backend serverning o'z CPU/RAM/diskini ko'rsatardi, endi tanlangan ulangan device'ning haqiqiy statistikasini ko'rsatadi (device kartalarini bosib almashtirish mumkin)
+- [x] **Docker holati tekshiruvi tuzatildi** — avval daemon'ga ulanib bo'lmasa (masalan agent systemd service sifatida boshqa user ostida ishlayotgani uchun) "o'rnatilmagan" deb noto'g'ri ko'rsatardi. Endi "CLI o'rnatilganmi" va "daemon'ga ulanib bo'ladimi" alohida tekshiriladi, rootless docker uchun `XDG_RUNTIME_DIR` fallback bilan
+- [x] Swap tekshiruvi `LC_ALL=C` bilan mustahkamlandi (boshqa tilli locale'da "Swap:" qatori tanilmay qolmasin)
+- [x] Backend modullari `src/modules/` papkasiga ko'chirildi (`src/modules/auth`, `src/modules/apps`, ...) — `common`/`config`/`database`/`redis` umumiy infratuzilma sifatida `src/` ildizida qoladi
+- [x] Barcha REST endpointlar global `/api/v1` prefiksi ostida (`app.setGlobalPrefix('api/v1')`) — masalan `POST /api/v1/auth/login`. WebSocket namespace'lari (`/agents`, `/clients`) prefiksdan tashqarida — Socket.IO buni frontend/CLI'da alohida `API_HOST`/`apiUrl` orqali ishlatadi, REST esa `API_BASE`/`apiBase` (`+ /api/v1`) orqali
+- [x] Fullscreen terminal — UI tugma yoki `Ctrl+Shift+F`, `Esc` bilan chiqish
 
 ### 🚧 Navbatda
 
+- [ ] "(arg: 3)" terminal glitch'i — Screenctl kodida (frontend/backend/agent PTY) manba topilmadi; ehtimol shell'ning o'z prompt/rc konfiguratsiyasidan (login shell `-l`) kelayotgan bo'lishi mumkin, `bash -l` bilan Screenctl'dan tashqarida tekshirib ko'rish kerak
 - [ ] Windows agent
 - [ ] macOS agent
 - [ ] Device tree navigatsiyasi (frontend — Devices → cascading tree: Hardware/Docker/Network/Processes/Services/Tasks/Logs/Audit)

@@ -1,5 +1,5 @@
 import axios, { AxiosError, type AxiosInstance, type InternalAxiosRequestConfig } from 'axios';
-import { readConfig, readCredentials, writeCredentials, clearCredentials } from '../config/store.js';
+import { readConfig, readCredentials, writeCredentials, clearCredentials, toApiBase } from '../config/store.js';
 import type { ApiErrorBody, RefreshResponse } from '../types.js';
 import { ErrorCode, ERROR_CODE_HINTS } from '../utils/error-codes.js';
 
@@ -24,9 +24,10 @@ let pendingQueue: Array<() => void> = [];
 
 function createClient(): AxiosInstance {
     const { apiUrl } = readConfig();
+    const apiBase = toApiBase(apiUrl);
 
     const client = axios.create({
-        baseURL: apiUrl,
+        baseURL: apiBase,
         timeout: 30_000,
         headers: { 'Content-Type': 'application/json' },
     });
@@ -65,7 +66,7 @@ function createClient(): AxiosInstance {
 
                 isRefreshing = true;
                 try {
-                    const { data } = await axios.post<RefreshResponse>(`${apiUrl}/auth/refresh`, {
+                    const { data } = await axios.post<RefreshResponse>(`${apiBase}/auth/refresh`, {
                         refreshToken: creds.refreshToken,
                     });
                     writeCredentials({ ...creds, accessToken: data.accessToken, refreshToken: data.refreshToken });

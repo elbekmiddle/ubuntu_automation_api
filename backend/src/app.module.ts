@@ -5,27 +5,24 @@ import { BullModule } from '@nestjs/bullmq';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 
 import { DatabaseModule } from './database/database.module';
-import { TemplatesModule } from './templates/templates.module';
-import { JobsModule } from './jobs/jobs.module';
-import { SystemModule } from './system/system.module';
-import { FilesModule } from './files/files.module';
-import { DevicesModule } from './devices/devices.module';
-import { DeviceTrackingMiddleware } from './devices/device-tracking.middleware';
-import { AuditModule } from './audit/audit.module';
-import { AuditLogInterceptor } from './audit/audit-log.interceptor';
-import { SchedulesModule } from './schedules/schedules.module';
-import { DistroConfigsModule } from './distro-configs/distro-configs.module';
-import { AuthModule } from './auth/auth.module';
-import { AppsModule } from './apps/apps.module';
+import { TemplatesModule } from './modules/templates/templates.module';
+import { JobsModule } from './modules/jobs/jobs.module';
+import { SystemModule } from './modules/system/system.module';
+import { FilesModule } from './modules/files/files.module';
+import { DevicesModule } from './modules/devices/devices.module';
+import { DeviceTrackingMiddleware } from './modules/devices/device-tracking.middleware';
+import { AuditModule } from './modules/audit/audit.module';
+import { AuditLogInterceptor } from './modules/audit/audit-log.interceptor';
+import { SchedulesModule } from './modules/schedules/schedules.module';
+import { DistroConfigsModule } from './modules/distro-configs/distro-configs.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AppsModule } from './modules/apps/apps.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: [
-        '.env.development',
-        '.env',
-      ],
+      envFilePath: ['.env.development', '.env'],
     }),
 
     DatabaseModule,

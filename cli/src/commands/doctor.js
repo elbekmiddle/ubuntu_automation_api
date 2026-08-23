@@ -23,7 +23,7 @@ async function doctorCommand() {
   console.log();
 
   const connectionOk = await check('API connection', async () => {
-    const res = await fetch(`${apiUrl}/templates`, { method: 'GET' }).catch((e) => {
+    const res = await fetch(`${config.getApiBaseUrl()}/templates`, { method: 'GET' }).catch((e) => {
       throw new Error(`ulanib bo'lmadi (${e.message})`);
     });
     if (!res.ok && res.status !== 401 && res.status !== 429) {

@@ -159,8 +159,12 @@ async function collectPortsNow() {
 }
 /** Linux'da `free -b` orqali swap holatini oladi; boshqa platformalarda yoki topilmasa `null`. */
 async function getSwap() {
+    if (process.platform !== 'linux')
+        return null;
     try {
-        const { stdout } = await execAsync('free -b');
+        // `LC_ALL=C` — tizim locale'i inglizcha bo'lmasa ham "Swap:" qatori
+        // boshqa tilda ("Auslagerung:", "Обмен:" va h.k.) chiqib ketmasin.
+        const { stdout } = await execAsync('LC_ALL=C free -b');
         const line = stdout.split('\n').find((l) => l.toLowerCase().startsWith('swap'));
         if (!line)
             return null;
@@ -168,7 +172,9 @@ async function getSwap() {
         // Swap:  total  used  free
         const total = Number(parts[1]);
         const used = Number(parts[2]);
-        if (!Number.isFinite(total) || total <= 0)
+        if (!Number.isFinite(total) || !Number.isFinite(used))
+            return null;
+        if (total <= 0)
             return { total: 0, used: 0, usedPercent: 0 };
         return {
             total,
@@ -181,43 +187,64 @@ async function getSwap() {
     }
 }
 /**
- * Docker holatini tekshiradi — o'rnatilmagan yoki daemon ishlamayotgan
- * bo'lsa xatoni yutib, shunchaki `installed:false`/`engineRunning:false`
- * qaytaradi (agent hech qachon shu sabab yiqilmasligi kerak).
+ * Docker holatini tekshiradi.
+ *
+ * MUHIM: "o'rnatilganmi" va "daemon'ga ulanib bo'ladimi" — ikki alohida
+ * savol, ilgari bittasiga birlashtirilgan edi (`docker version --format
+ * "{{.Server.Version}}"` — bu Server bo'limini talab qiladi, ya'ni
+ * daemon'ga yetib bormasa butun tekshiruv "o'rnatilmagan" deb noto'g'ri
+ * xulosa chiqarardi, garchi docker aslida o'rnatilgan va hatto ishlab
+ * turgan bo'lsa ham — masalan agent systemd service sifatida boshqa user/
+ * env ostida ishga tushirilgan bo'lsa va shu user docker socket'ga
+ * yetolmasa). Endi ikkalasi mustaqil tekshiriladi:
+ *   1) `docker --version` — faqat CLI borligini tekshiradi, daemon shart emas.
+ *   2) `docker ps` — daemon'ga ulanishni tekshiradi; muvaffaqiyatsiz bo'lsa
+ *      ham (1) haqiqiy bo'lsa `installed:true, engineRunning:false` qaytadi.
+ * Rootless Docker holatlarida socket odatda `$XDG_RUNTIME_DIR/docker.sock`da
+ * bo'ladi — agent systemd (system) service sifatida ishga tushirilgan bo'lsa
+ * bu o'zgaruvchi yo'q bo'lishi mumkin, shuning uchun standart
+ * `/run/user/<uid>` yo'lini fallback sifatida qo'shib ko'ramiz.
  */
 async function getDocker() {
     const empty = { installed: false, engineRunning: false, running: false, version: null, containers: [] };
+    let version = null;
     try {
-        const { stdout: versionOut } = await execAsync('docker version --format "{{.Server.Version}}" 2>/dev/null');
-        const version = versionOut.trim() || null;
-        if (!version)
-            return empty;
-        try {
-            const { stdout } = await execAsync(`docker ps --format "{{.ID}}|{{.Names}}|{{.State}}|{{.Ports}}"`);
-            const containers = stdout
-                .trim()
-                .split('\n')
-                .filter(Boolean)
-                .map((line) => {
-                const [ID, Names, State, Ports] = line.split('|');
-                return { ID, Names, State: State ?? 'running', Ports: Ports ?? '' };
-            });
-            return {
-                installed: true,
-                engineRunning: true,
-                running: containers.length > 0,
-                version,
-                containers,
-            };
-        }
-        catch {
-            // docker CLI bor, lekin daemon'ga ulanib bo'lmadi (masalan
-            // ishlamayapti yoki user dockerd guruhida emas).
-            return { installed: true, engineRunning: false, running: false, version, containers: [] };
-        }
+        const { stdout } = await execAsync('docker --version');
+        version = stdout.trim() || null;
     }
     catch {
+        // `docker` topilmadi (ENOENT) yoki umuman ishlamadi — CLI o'zi yo'q.
         return empty;
+    }
+    const rootlessEnvFallback = {
+        ...process.env,
+        XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? ''}`,
+    };
+    async function tryPs(env) {
+        const { stdout } = await execAsync(`docker ps --format "{{.ID}}|{{.Names}}|{{.State}}|{{.Ports}}"`, { env });
+        return stdout
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+            const [ID, Names, State, Ports] = line.split('|');
+            return { ID, Names, State: State ?? 'running', Ports: Ports ?? '' };
+        });
+    }
+    try {
+        const containers = await tryPs(process.env);
+        return { installed: true, engineRunning: true, running: containers.length > 0, version, containers };
+    }
+    catch {
+        try {
+            const containers = await tryPs(rootlessEnvFallback);
+            return { installed: true, engineRunning: true, running: containers.length > 0, version, containers };
+        }
+        catch {
+            // CLI bor (version o'qildi), lekin daemon'ga ulanib bo'lmadi —
+            // masalan dockerd ishlamayapti yoki bu user docker guruhida emas.
+            return { installed: true, engineRunning: false, running: false, version, containers: [] };
+        }
     }
 }
 export async function collectHeartbeatMetrics() {

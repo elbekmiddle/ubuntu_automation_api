@@ -90,6 +90,15 @@ function getApiUrl() {
   return load().apiUrl;
 }
 
+/**
+ * REST so'rovlar uchun base URL — `apiUrl` (yalang'och host) + `/api/v1`.
+ * `apiUrl`ning o'zi o'zgarmaydi, chunki u agent'ning Socket.IO ulanishi
+ * uchun ham ishlatiladi (`${apiUrl}/agents`, prefix'siz namespace).
+ */
+function getApiBaseUrl() {
+  return `${load().apiUrl.replace(/\/+$/, '')}/api/v1`;
+}
+
 module.exports = {
   CONFIG_FILE,
   load,
@@ -97,4 +106,5 @@ module.exports = {
   setTokens,
   clearTokens,
   getApiUrl,
+  getApiBaseUrl,
 };

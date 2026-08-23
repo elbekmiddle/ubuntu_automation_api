@@ -1,5 +1,10 @@
-export const API_BASE =
+export const API_HOST =
     import.meta.env.VITE_API_URL || "http://localhost:3000";
+
+/** REST so'rovlar shu bilan boshlanadi. Socket.IO ulanishlari uchun
+ *  esa `API_HOST` ishlatiladi (`/api/v1` prefix HTTP routelarga tegishli,
+ *  Socket.IO namespace'lariga emas — qarang: lib/socket.js). */
+export const API_BASE = `${API_HOST}/api/v1`;
 
 const ACCESS_KEY = "screenctl:access-token";
 const REFRESH_KEY = "screenctl:refresh-token";

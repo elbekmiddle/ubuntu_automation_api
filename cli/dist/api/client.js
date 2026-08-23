@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { readConfig, readCredentials, writeCredentials, clearCredentials } from '../config/store.js';
+import { readConfig, readCredentials, writeCredentials, clearCredentials, toApiBase } from '../config/store.js';
 import { ERROR_CODE_HINTS } from '../utils/error-codes.js';
 export class ApiError extends Error {
     statusCode;
@@ -19,8 +19,9 @@ let isRefreshing = false;
 let pendingQueue = [];
 function createClient() {
     const { apiUrl } = readConfig();
+    const apiBase = toApiBase(apiUrl);
     const client = axios.create({
-        baseURL: apiUrl,
+        baseURL: apiBase,
         timeout: 30_000,
         headers: { 'Content-Type': 'application/json' },
     });
@@ -51,7 +52,7 @@ function createClient() {
             }
             isRefreshing = true;
             try {
-                const { data } = await axios.post(`${apiUrl}/auth/refresh`, {
+                const { data } = await axios.post(`${apiBase}/auth/refresh`, {
                     refreshToken: creds.refreshToken,
                 });
                 writeCredentials({ ...creds, accessToken: data.accessToken, refreshToken: data.refreshToken });

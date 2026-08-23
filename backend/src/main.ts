@@ -35,6 +35,14 @@ async function bootstrap() {
     }),
   );
 
+  // Barcha REST endpointlar endi `/api/v1/...` ostida (masalan
+  // `/api/v1/auth/login`, `/api/v1/apps`). WebSocket gateway'lar
+  // (`/agents`, `/clients` namespace'lari) buning ostida emas — ular
+  // Socket.IO'ning o'z namespace mexanizmidan foydalanadi, HTTP prefix
+  // ularga taalluqli emas. Swagger (`/swagger`) ham shu prefix'dan
+  // tashqarida qoladi.
+  app.setGlobalPrefix('api/v1');
+
   // Autentifikatsiya endi to'liq DB-backed: userlar uchun JWT
   // (AuthModule — access/refresh token, `auth.controller.ts`),
   // agent/device'lar uchun esa DB'da hash'langan, rotatsiya

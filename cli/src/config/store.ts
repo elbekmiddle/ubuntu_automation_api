@@ -60,6 +60,18 @@ export function writeConfig(config: Partial<Config>): void {
 }
 
 /**
+ * `apiUrl` konfiguratsiyada har doim "yalang'och" host sifatida saqlanadi
+ * (masalan `https://screen-api.honeymedia.uz` yoki `http://localhost:5000`)
+ * — chunki u ikki xil narsa uchun ishlatiladi: Socket.IO ulanishi
+ * (`${apiUrl}/agents`, prefix'siz namespace) va REST so'rovlar
+ * (`${apiUrl}/api/v1/...`). Shu sabab bitta joyda hisoblanadi, toki
+ * ikkalasi bir-biridan uzoqlashib qolmasin.
+ */
+export function toApiBase(apiUrl: string): string {
+    return `${apiUrl.replace(/\/+$/, '')}/api/v1`;
+}
+
+/**
  * Diqqat: bu yerda plaintext PAROL hech qachon saqlanmaydi — faqat login
  * paytida backend qaytargan access/refresh tokenlar. Fayl ruxsati 0600
  * (faqat egasi o'qiy oladi).

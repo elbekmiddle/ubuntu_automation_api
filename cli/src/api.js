@@ -9,12 +9,14 @@ async function tryRefresh() {
     refreshToken,
   } = config.load();
 
+  const apiBase = `${apiUrl.replace(/\/+$/, '')}/api/v1`;
+
   if (!refreshToken) {
     return false;
   }
 
   if (!refreshing) {
-    refreshing = fetch(`${apiUrl}/auth/refresh`, {
+    refreshing = fetch(`${apiBase}/auth/refresh`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -58,6 +60,8 @@ async function request(
     accessToken,
   } = config.load();
 
+  const apiBase = `${apiUrl.replace(/\/+$/, '')}/api/v1`;
+
   const headers = {
     'Content-Type': 'application/json',
 
@@ -73,7 +77,7 @@ async function request(
 
   try {
     res = await fetch(
-        `${apiUrl}${pathname}`,
+        `${apiBase}${pathname}`,
         {
           ...opts,
           headers,
@@ -81,7 +85,7 @@ async function request(
     );
   } catch (err) {
     const e = new Error(
-        `API'ga ulanib bo'lmadi: ${apiUrl} (${err.message})`,
+        `API'ga ulanib bo'lmadi: ${apiBase} (${err.message})`,
     );
 
     e.cause = err;

@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
-import { TerminalSquare, Power } from "lucide-react";
+import { TerminalSquare, Power, Maximize2, Minimize2 } from "lucide-react";
 import { connectClientSocket } from "../lib/socket";
 import { Panel, Button } from "./ui";
 
@@ -31,6 +31,7 @@ export default function DeviceTerminal({ appId, canConnect }) {
 
   const [status, setStatus] = useState("idle"); // idle | connecting | open | closed | error
   const [error, setError] = useState(null);
+  const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return undefined;
@@ -233,8 +234,76 @@ export default function DeviceTerminal({ appId, canConnect }) {
     else socket.once("connect", send);
   };
 
+  // Fullscreen holati o'zgarganda konteyner o'lchami DOM'da darhol
+  // yangilanmaydi (CSS transition/layout keyingi frame'da tugaydi) —
+  // shuning uchun `fit()`ni requestAnimationFrame ichida chaqiramiz va
+  // yangi cols/rows'ni backend'ga (pty'ga) `terminal:resize` orqali
+  // yetkazamiz, aks holda shell o'zining eski o'lchamida qolib, matn
+  // noto'g'ri joyларда o'ralib qoladi.
+  useEffect(() => {
+    const fit = fitRef.current;
+    const term = xtermRef.current;
+    if (!fit || !term) return undefined;
+
+    const rafId = requestAnimationFrame(() => {
+      try {
+        fit.fit();
+      } catch {
+        // terminal dispose bo'lgan bo'lishi mumkin.
+      }
+      const socket = socketRef.current;
+      const sessionId = sessionIdRef.current;
+      if (socket && sessionId) {
+        socket.emit("terminal:resize", { sessionId, cols: term.cols, rows: term.rows });
+      }
+    });
+
+    return () => cancelAnimationFrame(rafId);
+  }, [fullscreen]);
+
+  // Ctrl+Shift+F — fullscreen'ni yoqish/o'chirish; Escape — fullscreen'dan chiqish.
+  useEffect(() => {
+    function onKeyDown(e) {
+      if (e.ctrlKey && e.shiftKey && (e.key === "F" || e.key === "f")) {
+        e.preventDefault();
+        setFullscreen((v) => !v);
+      } else if (e.key === "Escape" && fullscreen) {
+        setFullscreen(false);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fullscreen]);
+
   return (
-    <Panel style={{ padding: 0, overflow: "hidden" }}>
+    <>
+      {fullscreen && (
+        <div
+          onClick={() => setFullscreen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.6)",
+            zIndex: 190,
+          }}
+        />
+      )}
+      <Panel
+      style={
+        fullscreen
+          ? {
+              padding: 0,
+              overflow: "hidden",
+              position: "fixed",
+              inset: 12,
+              zIndex: 200,
+              display: "flex",
+              flexDirection: "column",
+              boxShadow: "0 12px 48px rgba(0,0,0,0.55)",
+            }
+          : { padding: 0, overflow: "hidden" }
+      }
+    >
       <div
         style={{
           display: "flex",
@@ -243,6 +312,7 @@ export default function DeviceTerminal({ appId, canConnect }) {
           padding: "10px 14px",
           borderBottom: "1px solid var(--border)",
           background: "var(--surface)",
+          flexShrink: 0,
         }}
         className="mono"
       >
@@ -251,11 +321,23 @@ export default function DeviceTerminal({ appId, canConnect }) {
           real-time terminal
           <TerminalStatus status={status} />
         </div>
-        {(status === "closed" || status === "error") && canConnect && (
-          <Button variant="ghost" icon={Power} onClick={reconnect}>
-            reconnect
-          </Button>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {(status === "closed" || status === "error") && canConnect && (
+            <Button variant="ghost" icon={Power} onClick={reconnect}>
+              reconnect
+            </Button>
+          )}
+          {canConnect && (
+            <Button
+              variant="ghost"
+              icon={fullscreen ? Minimize2 : Maximize2}
+              title={fullscreen ? "Exit fullscreen (Esc)" : "Fullscreen (Ctrl+Shift+F)"}
+              onClick={() => setFullscreen((v) => !v)}
+            >
+              {fullscreen ? "exit" : "fullscreen"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {!canConnect && (
@@ -268,8 +350,16 @@ export default function DeviceTerminal({ appId, canConnect }) {
           {error}
         </div>
       )}
-      <div ref={containerRef} style={{ padding: canConnect ? "8px 10px" : 0, height: canConnect ? 380 : 0 }} />
-    </Panel>
+      <div
+        ref={containerRef}
+        style={
+          fullscreen
+            ? { padding: "8px 10px", flex: 1, minHeight: 0 }
+            : { padding: canConnect ? "8px 10px" : 0, height: canConnect ? 380 : 0 }
+        }
+      />
+      </Panel>
+    </>
   );
 }
 

@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
-import { API_BASE, getAccessToken } from "./api";
+import { API_HOST, getAccessToken } from "./api";
 
 let clientSocket = null;
 
@@ -11,7 +11,7 @@ let clientSocket = null;
 export function getClientSocket() {
   if (clientSocket) return clientSocket;
 
-  clientSocket = io(`${API_BASE}/clients`, {
+  clientSocket = io(`${API_HOST}/clients`, {
     autoConnect: false,
     transports: ["websocket", "polling"],
     auth: (cb) => cb({ token: getAccessToken() }),
