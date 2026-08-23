@@ -1,4 +1,5 @@
 import {
+  Ack,
   ConnectedSocket,
   MessageBody,
   OnGatewayConnection,
@@ -176,34 +177,46 @@ export class TerminalGateway
   async handleOpen(
     @MessageBody() body: { appId: string; cols?: number; rows?: number },
     @ConnectedSocket() client: ClientSocket,
+    @Ack() ack: (response: { event: string; data: unknown }) => void,
   ) {
+    // MUHIM: bu yerda hech qachon `return { event, data }` qilmaymiz.
+    // Frontend `socket.timeout(8000).emit('terminal:open', payload, cb)`
+    // orqali socket.io ACKNOWLEDGEMENT callback'ini kutadi. Agar shu yerdan
+    // shunchaki `{event, data}` shaklida qiymat qaytarilsa, Nest'ning
+    // socket.io adapteri buni "WsResponse" deb hisoblab, ack callback'ini
+    // CHAQIRMAY, o'rniga `client.emit(response.event, response.data)` orqali
+    // yangi, hech kim tinglamaydigan xabar yuboradi — natijada frontend
+    // hech qachon ack olmaydi va har doim 8 soniyadan keyin
+    // "Server javob bermadi (timeout)" xatosini ko'rsatadi, garchi backend
+    // sessiyani muvaffaqiyatli ochgan bo'lsa ham (loglarda ko'ringanidek).
+    // `@Ack()` orqali xom callback'ni olib, uni QO'LDA chaqiramiz — shunda
+    // Nest avtomatik javobni aralashtirmaydi.
     const userId = client.data.userId;
-    if (!userId)
-      return {
-        event: 'terminal:error',
-        data: { message: 'Not authenticated' },
-      };
+    if (!userId) {
+      ack({ event: 'terminal:error', data: { message: 'Not authenticated' } });
+      return;
+    }
 
     let app: AppRecord;
     try {
       app = await this.appsService.findOneForUser(userId, body.appId);
     } catch {
-      return { event: 'terminal:error', data: { message: 'Device not found' } };
+      ack({ event: 'terminal:error', data: { message: 'Device not found' } });
+      return;
     }
 
     if (app.permission !== 'read_write') {
-      return {
+      ack({
         event: 'terminal:error',
         data: {
           message: 'This device is read-only — terminal access is disabled',
         },
-      };
+      });
+      return;
     }
     if (app.status !== 'online' || !this.agentsGateway.isAppConnected(app.id)) {
-      return {
-        event: 'terminal:error',
-        data: { message: 'Device is offline' },
-      };
+      ack({ event: 'terminal:error', data: { message: 'Device is offline' } });
+      return;
     }
 
     const sessionId = crypto.randomUUID();
@@ -227,7 +240,7 @@ export class TerminalGateway
     this.logger.log(
       `Terminal session ${sessionId} opened for app=${app.id} by user=${userId}`,
     );
-    return { event: 'terminal:opened', data: { sessionId } };
+    ack({ event: 'terminal:opened', data: { sessionId } });
   }
 
   private sessionFor(

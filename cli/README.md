@@ -1,5 +1,17 @@
 # Screenctl CLI
 
+## O'rnatish (production, Ubuntu)
+
+```bash
+cd cli
+chmod +x install.sh
+./install.sh
+```
+
+Bu Node.js LTS'ni (kerak bo'lsa), `node-pty` uchun build vositalarini
+(build-essential/python3), CLI buildini va global `screenctl` komandasini
+avtomatik o'rnatadi. Batafsil — script ichidagi izohlarda.
+
 ## O'rnatish (local dev)
 
 ```bash

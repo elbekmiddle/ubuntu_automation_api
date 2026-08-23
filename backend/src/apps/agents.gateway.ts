@@ -1,4 +1,5 @@
 import {
+  Ack,
   ConnectedSocket,
   MessageBody,
   OnGatewayDisconnect,
@@ -79,7 +80,14 @@ export class AgentsGateway implements OnGatewayDisconnect {
   async handleRegister(
     @MessageBody() payload: RegisterPayload,
     @ConnectedSocket() client: Socket,
+    @Ack() ack: (response: { event: string; data: unknown }) => void,
   ) {
+    // Xuddi TerminalGateway.handleOpen'dagi kabi: CLI agent
+    // `socket.emit('register', payload, (ack) => {...})` orqali ack
+    // callback kutadi. `{event, data}` shaklida `return` qilish Nest'ni
+    // ack o'rniga yangi `client.emit(...)` xabari yuborishga majbur qiladi
+    // — shu sabab agent hech qachon "✓ Registered" tasdiqini ko'rmas edi
+    // (garchi ro'yxatdan o'tish backendda muvaffaqiyatli bo'lsa ham).
     try {
       const app = await this.appsService.authenticateAgent(
         payload.appId,
@@ -97,11 +105,11 @@ export class AgentsGateway implements OnGatewayDisconnect {
       this.logger.log(
         `Agent registered: app=${app.id} (${payload.hostname ?? 'unknown host'})`,
       );
-      return { event: 'registered', data: { appId: app.id, status: 'online' } };
+      ack({ event: 'registered', data: { appId: app.id, status: 'online' } });
     } catch (err) {
       this.logger.warn(`Agent registration failed: ${(err as Error).message}`);
+      ack({ event: 'error', data: { message: 'Registration failed' } });
       client.disconnect(true);
-      return { event: 'error', data: { message: 'Registration failed' } };
     }
   }
 
