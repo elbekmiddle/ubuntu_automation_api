@@ -13,6 +13,7 @@ import {
     Server,
     Shield,
     Plug,
+    Wifi,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { jitteredInterval } from "../lib/jitter";
@@ -210,7 +211,41 @@ export default function AppDetail() {
                 />
             </div>
 
-            <SectionLabel index="03" id="network">ports</SectionLabel>
+            <SectionLabel index="03" id="network">network</SectionLabel>
+            <Panel style={{ padding: 0, marginBottom: 20, overflow: "hidden" }}>
+                {!metrics.network && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline ? "Interfeys ma'lumoti hali kelmadi…" : "Device offline — interfeys ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.network
+                    ?.filter((n) => !n.internal && n.family === "IPv4")
+                    .map((n, i) => (
+                        <div
+                            key={`${n.name}:${n.address}`}
+                            className="mono"
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "10px 20px",
+                                borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                                fontSize: 12.5,
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                <Wifi size={13} color="var(--text-secondary)" />
+                                <span style={{ fontWeight: 600 }}>{n.name}</span>
+                                <span style={{ color: "var(--text-muted)" }}>{n.address}</span>
+                            </div>
+                            <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{n.mac}</span>
+                        </div>
+                    ))}
+            </Panel>
+
+            <div className="mono eyebrow" style={{ fontSize: 11, color: "var(--text-muted)", marginBottom: 8 }}>
+                listening ports
+            </div>
             <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
                 {!metrics.ports && (
                     <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>

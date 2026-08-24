@@ -187,6 +187,31 @@ async function getSwap() {
     }
 }
 /**
+ * `os.networkInterfaces()` — Node'ning o'zida bor, shell chaqirish shart
+ * emas, shuning uchun Linux/Windows/macOS'da bir xil ishlaydi (kelajakdagi
+ * Windows/macOS agent uchun ham qayta yozish kerak bo'lmaydi). Loopback
+ * (`internal: true`) interfeyslar ham qaytariladi — frontend ularni xohlasa
+ * filtrlab ko'rsatadi, chunki ba'zan diagnostika uchun foydali (masalan
+ * `lo` orqali local xizmat javob berayaptimi tekshirish).
+ */
+function getNetwork() {
+    const ifaces = os.networkInterfaces();
+    const result = [];
+    for (const [name, addrs] of Object.entries(ifaces)) {
+        for (const addr of addrs ?? []) {
+            result.push({
+                name,
+                address: addr.address,
+                family: addr.family,
+                mac: addr.mac,
+                internal: addr.internal,
+                cidr: addr.cidr ?? null,
+            });
+        }
+    }
+    return result;
+}
+/**
  * Docker holatini tekshiradi.
  *
  * MUHIM: "o'rnatilganmi" va "daemon'ga ulanib bo'ladimi" — ikki alohida
@@ -268,6 +293,7 @@ export async function collectHeartbeatMetrics() {
         swap,
         disk,
         docker,
+        network: getNetwork(),
         loadavg: os.loadavg(),
         uptime: os.uptime(),
         ports: portsCache,

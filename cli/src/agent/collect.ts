@@ -213,6 +213,41 @@ async function getSwap(): Promise<{ total: number; used: number; usedPercent: nu
     }
 }
 
+export interface NetworkInterfaceInfo {
+    name: string;
+    address: string;
+    family: 'IPv4' | 'IPv6';
+    mac: string;
+    internal: boolean;
+    cidr: string | null;
+}
+
+/**
+ * `os.networkInterfaces()` — Node'ning o'zida bor, shell chaqirish shart
+ * emas, shuning uchun Linux/Windows/macOS'da bir xil ishlaydi (kelajakdagi
+ * Windows/macOS agent uchun ham qayta yozish kerak bo'lmaydi). Loopback
+ * (`internal: true`) interfeyslar ham qaytariladi — frontend ularni xohlasa
+ * filtrlab ko'rsatadi, chunki ba'zan diagnostika uchun foydali (masalan
+ * `lo` orqali local xizmat javob berayaptimi tekshirish).
+ */
+function getNetwork(): NetworkInterfaceInfo[] {
+    const ifaces = os.networkInterfaces();
+    const result: NetworkInterfaceInfo[] = [];
+    for (const [name, addrs] of Object.entries(ifaces)) {
+        for (const addr of addrs ?? []) {
+            result.push({
+                name,
+                address: addr.address,
+                family: addr.family as 'IPv4' | 'IPv6',
+                mac: addr.mac,
+                internal: addr.internal,
+                cidr: addr.cidr ?? null,
+            });
+        }
+    }
+    return result;
+}
+
 export interface DockerStatus {
     /** `docker` CLI mashinada topildimi (daemon holatidan qat'i nazar). */
     installed: boolean;
@@ -297,6 +332,7 @@ export interface HeartbeatMetrics {
     swap: { total: number; used: number; usedPercent: number } | null;
     disk: { total: number; used: number; usedPercent: number } | null;
     docker: DockerStatus;
+    network: NetworkInterfaceInfo[];
     loadavg: number[];
     uptime: number;
     ports: PortInfo[] | null;
@@ -326,6 +362,7 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
         swap,
         disk,
         docker,
+        network: getNetwork(),
         loadavg: os.loadavg(),
         uptime: os.uptime(),
         ports: portsCache,

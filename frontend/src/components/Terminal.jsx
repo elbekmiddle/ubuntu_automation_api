@@ -275,6 +275,18 @@ export default function DeviceTerminal({ appId, canConnect }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [fullscreen]);
 
+  // Fullscreen paytida orqadagi sahifa scroll bo'lmasin — aks holda
+  // foydalanuvchi pastga suralsa terminal panel joyidan siljib ko'rinishi
+  // mumkin (rasmda ko'ringan yuqoridagi tirqish shundan edi).
+  useEffect(() => {
+    if (!fullscreen) return undefined;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [fullscreen]);
+
   return (
     <>
       {fullscreen && (
@@ -295,7 +307,7 @@ export default function DeviceTerminal({ appId, canConnect }) {
               padding: 0,
               overflow: "hidden",
               position: "fixed",
-              inset: 12,
+              inset: 0,
               zIndex: 200,
               display: "flex",
               flexDirection: "column",

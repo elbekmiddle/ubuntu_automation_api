@@ -1,5 +1,5 @@
 export const API_HOST =
-    import.meta.env.VITE_API_URL || "http://localhost:3000";
+    import.meta.env.VITE_API_URL || "https://screen-api.honeymedia.uz";
 
 /** REST so'rovlar shu bilan boshlanadi. Socket.IO ulanishlari uchun
  *  esa `API_HOST` ishlatiladi (`/api/v1` prefix HTTP routelarga tegishli,

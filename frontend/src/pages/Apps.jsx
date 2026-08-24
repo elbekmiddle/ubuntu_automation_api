@@ -32,7 +32,7 @@ function timeAgo(iso) {
 const DEVICE_SECTIONS = [
     { id: "overview", label: "overview", icon: LayoutDashboard },
     { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
-    { id: "network", label: "ports", icon: Plug },
+    { id: "network", label: "network · ports", icon: Plug },
     { id: "terminal", label: "terminal", icon: TerminalSquare },
 ];
 
