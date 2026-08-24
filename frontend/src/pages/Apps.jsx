@@ -8,6 +8,8 @@ import {
     LayoutDashboard,
     Cpu,
     Plug,
+    ListTree,
+    Settings2,
     TerminalSquare,
 } from "lucide-react";
 import { api } from "../lib/api";
@@ -26,13 +28,15 @@ function timeAgo(iso) {
 
 // Har bir device tree tugunining bolalari — hozircha faqat haqiqatan
 // mavjud bo'lgan bo'limlar (AppDetail'dagi SectionLabel id'lariga mos).
-// Network/Processes/Services/Tasks/Logs/Audit — roadmap'da bor, lekin
-// backend'da hali telemetriya yo'q, shuning uchun bu yerga soxta link
-// qo'shilmaydi (qo'shilganda shu ro'yxatga qator sifatida qo'shiladi).
+// Tasks/Logs/Audit — roadmap'da bor, lekin backend'da hali telemetriya
+// yo'q, shuning uchun bu yerga soxta link qo'shilmaydi (qo'shilganda shu
+// ro'yxatga qator sifatida qo'shiladi).
 const DEVICE_SECTIONS = [
     { id: "overview", label: "overview", icon: LayoutDashboard },
     { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
     { id: "network", label: "network · ports", icon: Plug },
+    { id: "processes", label: "processes", icon: ListTree },
+    { id: "services", label: "services", icon: Settings2 },
     { id: "terminal", label: "terminal", icon: TerminalSquare },
 ];
 
@@ -177,7 +181,10 @@ export default function Apps() {
                                     {DEVICE_SECTIONS.map((s) => (
                                         <Link
                                             key={s.id}
-                                            to={`/apps/${a.id}#${s.id}`}
+                                            // "overview" — sahifaning standart (hash'siz) holati:
+                                            // /apps/:id ochilganda allaqachon eng tepada overview
+                                            // ko'rinadi, shuning uchun unga alohida #overview qo'shmaymiz.
+                                            to={s.id === "overview" ? `/apps/${a.id}` : `/apps/${a.id}#${s.id}`}
                                             className="mono"
                                             style={{
                                                 display: "flex",

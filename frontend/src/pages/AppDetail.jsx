@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useLocation, Link } from "react-router-dom";
 import {
     ChevronLeft,
@@ -12,11 +12,17 @@ import {
     Clock,
     Server,
     Shield,
-    Plug,
     Wifi,
+    Search,
+    Settings2,
+    CheckCircle2,
+    XCircle,
+    Circle,
+    Loader2,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { jitteredInterval } from "../lib/jitter";
+import { getProcessMeta } from "../lib/processIcons";
 import { PageHeader, SectionLabel, Panel, StatusBadge, Button, AsciiBar } from "../components/ui";
 import DeviceTerminal from "../components/Terminal";
 
@@ -77,6 +83,53 @@ function MetricPanel({ icon: Icon, label, value, sub, pct }) {
     );
 }
 
+function FilterInput({ value, onChange, placeholder }) {
+    return (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 320 }}>
+                <Search size={12.5} color="var(--text-muted)" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)" }} />
+                <input
+                    className="mono"
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 2,
+                        padding: "7px 10px 7px 30px",
+                        fontSize: 12,
+                        color: "var(--text)",
+                        outline: "none",
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
+const SERVICE_STATUS = {
+    active: { color: "var(--success)", icon: CheckCircle2, label: "active" },
+    failed: { color: "var(--danger)", icon: XCircle, label: "failed" },
+    activating: { color: "var(--info)", icon: Loader2, label: "activating" },
+    reloading: { color: "var(--info)", icon: Loader2, label: "reloading" },
+    deactivating: { color: "var(--warning)", icon: Loader2, label: "deactivating" },
+    inactive: { color: "var(--text-muted)", icon: Circle, label: "inactive" },
+};
+
+function ServiceStatusChip({ active }) {
+    const s = SERVICE_STATUS[active] ?? { color: "var(--text-muted)", icon: Circle, label: active };
+    const Icon = s.icon;
+    return (
+        <span className="mono" style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, color: s.color, minWidth: 88 }}>
+            <Icon size={12} className={active === "activating" || active === "reloading" ? "spin" : ""} />
+            {s.label}
+        </span>
+    );
+}
+
 export default function AppDetail() {
     const { id } = useParams();
     const location = useLocation();
@@ -117,6 +170,31 @@ export default function AppDetail() {
         await api.apps.remove(id);
         window.location.href = "/apps";
     };
+
+    const [processFilter, setProcessFilter] = useState("");
+    const [serviceFilter, setServiceFilter] = useState("");
+    const [serviceStatusFilter, setServiceStatusFilter] = useState("all");
+
+    const metricsForFilters = app?.last_metrics ?? {};
+
+    const filteredProcesses = useMemo(() => {
+        const list = metricsForFilters.processes ?? [];
+        const q = processFilter.trim().toLowerCase();
+        if (!q) return list;
+        return list.filter(
+            (p) => p.command.toLowerCase().includes(q) || String(p.pid).includes(q) || p.user.toLowerCase().includes(q),
+        );
+    }, [metricsForFilters.processes, processFilter]);
+
+    const filteredServices = useMemo(() => {
+        let list = metricsForFilters.services ?? [];
+        if (serviceStatusFilter !== "all") {
+            list = list.filter((s) => s.active === serviceStatusFilter);
+        }
+        const q = serviceFilter.trim().toLowerCase();
+        if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
+        return list;
+    }, [metricsForFilters.services, serviceFilter, serviceStatusFilter]);
 
     if (!app && !error) return null;
 
@@ -257,34 +335,197 @@ export default function AppDetail() {
                         Tinglovchi (listening) port topilmadi.
                     </div>
                 )}
-                {metrics.ports?.map((p, i) => (
+                {metrics.ports?.map((p, i) => {
+                    const { icon: ProcIcon, color, label } = getProcessMeta(p.process);
+                    return (
+                        <div
+                            key={`${p.proto}:${p.port}`}
+                            className="mono"
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "10px 20px",
+                                borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                                fontSize: 12.5,
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 5,
+                                        background: `${color}1a`,
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <ProcIcon size={12.5} color={color} />
+                                </span>
+                                <span style={{ fontWeight: 600 }}>{p.port}</span>
+                                <span style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: 11 }}>
+                                    {p.proto}
+                                </span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                {label && (
+                                    <span
+                                        className="eyebrow"
+                                        style={{ color, fontSize: 10.5, border: `1px solid ${color}40`, borderRadius: 3, padding: "1px 6px" }}
+                                    >
+                                        {label}
+                                    </span>
+                                )}
+                                <span style={{ color: "var(--text-muted)" }}>
+                                    {p.process ? `${p.process}${p.pid ? ` (pid ${p.pid})` : ""}` : p.address}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </Panel>
+
+            <SectionLabel index="04" id="processes">processes</SectionLabel>
+            <FilterInput value={processFilter} onChange={setProcessFilter} placeholder="filter by name, pid, user…" />
+            <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
+                {!metrics.processes && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline ? "Jarayonlar ma'lumoti hali kelmadi…" : "Device offline — jarayonlar ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.processes && filteredProcesses.length === 0 && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        Mos jarayon topilmadi.
+                    </div>
+                )}
+                {filteredProcesses.map((p, i) => {
+                    const { icon: ProcIcon, color } = getProcessMeta(p.command);
+                    return (
+                        <div
+                            key={p.pid}
+                            className="mono"
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "9px 20px",
+                                borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                                fontSize: 12.5,
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                                <span
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 22,
+                                        height: 22,
+                                        borderRadius: 5,
+                                        background: `${color}1a`,
+                                        flexShrink: 0,
+                                    }}
+                                >
+                                    <ProcIcon size={12.5} color={color} />
+                                </span>
+                                <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 220 }}>
+                                    {p.command}
+                                </span>
+                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>pid {p.pid}</span>
+                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>{p.user}</span>
+                            </div>
+                            <div style={{ display: "flex", alignItems: "center", gap: 16, flexShrink: 0 }}>
+                                <span style={{ color: "var(--text-muted)", fontSize: 11.5, minWidth: 62, textAlign: "right" }}>
+                                    cpu {p.cpu.toFixed(1)}%
+                                </span>
+                                <span style={{ color: "var(--text-muted)", fontSize: 11.5, minWidth: 62, textAlign: "right" }}>
+                                    mem {p.mem.toFixed(1)}%
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </Panel>
+
+            <SectionLabel index="05" id="services">services</SectionLabel>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12, flexWrap: "wrap" }}>
+                <FilterInput value={serviceFilter} onChange={setServiceFilter} placeholder="filter by service name…" />
+                <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+                    {["all", "active", "failed", "inactive"].map((s) => (
+                        <button
+                            key={s}
+                            onClick={() => setServiceStatusFilter(s)}
+                            className="mono tui-btn"
+                            style={{
+                                fontSize: 11,
+                                padding: "5px 10px",
+                                borderRadius: 2,
+                                border: `1px solid ${serviceStatusFilter === s ? "var(--accent)" : "var(--border)"}`,
+                                background: serviceStatusFilter === s ? "var(--accent)" : "transparent",
+                                color: serviceStatusFilter === s ? "var(--accent-ink)" : "var(--text-secondary)",
+                                cursor: "pointer",
+                            }}
+                        >
+                            {s}
+                        </button>
+                    ))}
+                </div>
+            </div>
+            <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden", maxHeight: 420, overflowY: "auto" }}>
+                {!metrics.services && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline
+                            ? "Xizmatlar ma'lumoti hali kelmadi (yoki systemd topilmadi)…"
+                            : "Device offline — xizmatlar ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.services && filteredServices.length === 0 && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        Mos xizmat topilmadi.
+                    </div>
+                )}
+                {filteredServices.map((s, i) => (
                     <div
-                        key={`${p.proto}:${p.port}`}
+                        key={s.name}
                         className="mono"
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
                             alignItems: "center",
-                            padding: "10px 20px",
+                            padding: "9px 20px",
                             borderTop: i === 0 ? "none" : "1px solid var(--border)",
                             fontSize: 12.5,
                         }}
                     >
-                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-                            <Plug size={13} color="var(--text-secondary)" />
-                            <span style={{ fontWeight: 600 }}>{p.port}</span>
-                            <span style={{ color: "var(--text-muted)", textTransform: "uppercase", fontSize: 11 }}>
-                                {p.proto}
+                        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                            <Settings2 size={13} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 240 }}>
+                                {s.name.replace(/\.service$/, "")}
                             </span>
+                            {s.description && (
+                                <span
+                                    style={{
+                                        color: "var(--text-muted)",
+                                        fontSize: 11.5,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                        maxWidth: 320,
+                                    }}
+                                >
+                                    {s.description}
+                                </span>
+                            )}
                         </div>
-                        <span style={{ color: "var(--text-muted)" }}>
-                            {p.process ? `${p.process}${p.pid ? ` (pid ${p.pid})` : ""}` : p.address}
-                        </span>
+                        <ServiceStatusChip active={s.active} />
                     </div>
                 ))}
             </Panel>
 
-            <SectionLabel index="04" id="terminal">terminal</SectionLabel>
+            <SectionLabel index="06" id="terminal">terminal</SectionLabel>
             <div style={{ marginBottom: 32 }}>
                 <DeviceTerminal appId={app.id} canConnect={canConnect} />
             </div>

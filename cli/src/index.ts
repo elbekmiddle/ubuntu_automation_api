@@ -38,7 +38,16 @@ function buildProgram(): Command {
 
     program.command('login').description('Login to Screenctl')
         .option('-e, --email <email>').option('-p, --password <password>')
-        .action(async (opts) => loginCommand(opts));
+        .action(async (opts) => {
+            await loginCommand(opts);
+            // Login muvaffaqiyatli o'tsa (exitCode o'rnatilmagan bo'lsa),
+            // foydalanuvchini terminalga qaytarib qo'ymay, to'g'ridan-to'g'ri
+            // interaktiv home menyusiga o'tkazamiz — "screenctl login" ham
+            // argumentsiz "screenctl" kabi ishlaydi, faqat avval login qiladi.
+            if (!process.exitCode) {
+                await startInteractiveShell();
+            }
+        });
 
     program.command('register').description('Create a new Screenctl account')
         .option('-e, --email <email>').option('-p, --password <password>').option('-n, --name <name>')
