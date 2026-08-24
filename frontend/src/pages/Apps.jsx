@@ -1,6 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { RefreshCw, Trash2, ChevronRight } from "lucide-react";
+import {
+    RefreshCw,
+    Trash2,
+    ChevronRight,
+    ChevronDown,
+    LayoutDashboard,
+    Cpu,
+    Plug,
+    TerminalSquare,
+} from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button, StatusBadge } from "../components/ui";
 
@@ -15,10 +24,23 @@ function timeAgo(iso) {
     return `${Math.floor(h / 24)}d ago`;
 }
 
+// Har bir device tree tugunining bolalari — hozircha faqat haqiqatan
+// mavjud bo'lgan bo'limlar (AppDetail'dagi SectionLabel id'lariga mos).
+// Network/Processes/Services/Tasks/Logs/Audit — roadmap'da bor, lekin
+// backend'da hali telemetriya yo'q, shuning uchun bu yerga soxta link
+// qo'shilmaydi (qo'shilganda shu ro'yxatga qator sifatida qo'shiladi).
+const DEVICE_SECTIONS = [
+    { id: "overview", label: "overview", icon: LayoutDashboard },
+    { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
+    { id: "network", label: "ports", icon: Plug },
+    { id: "terminal", label: "terminal", icon: TerminalSquare },
+];
+
 export default function Apps() {
     const [apps, setApps] = useState([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
+    const [expanded, setExpanded] = useState(() => new Set());
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -40,6 +62,15 @@ export default function Apps() {
         if (!window.confirm("Disconnect this device? The agent will stop being authorized.")) return;
         await api.apps.remove(id);
         load();
+    };
+
+    const toggle = (id) => {
+        setExpanded((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
     };
 
     const online = apps.filter((a) => a.status === "online").length;
@@ -77,67 +108,96 @@ export default function Apps() {
                         </div>
                     </EmptyState>
                 )}
-                {apps.map((a, i) => (
-                    <Link
-                        key={a.id}
-                        to={`/apps/${a.id}`}
-                        className="mono"
-                        style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            padding: "13px 20px",
-                            borderTop: i === 0 ? "none" : "1px solid var(--border)",
-                            fontSize: 12.5,
-                            color: "inherit",
-                            textDecoration: "none",
-                            cursor: "pointer",
-                        }}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
-                            <StatusBadge status={a.status === "online" ? "online" : "offline"} />
-                            <span style={{ fontWeight: 600 }}>{a.name}</span>
-                            <span
+                {apps.map((a, i) => {
+                    const isOpen = expanded.has(a.id);
+                    return (
+                        <div key={a.id} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
+                            <div
+                                className="mono"
+                                onClick={() => toggle(a.id)}
                                 style={{
-                                    color: "var(--text-muted)",
-                                    overflow: "hidden",
-                                    textOverflow: "ellipsis",
-                                    whiteSpace: "nowrap",
-                                    maxWidth: 320,
-                                }}
-                            >
-                                {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
-                            </span>
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-                            <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>
-                            <button
-                                onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    remove(a.id);
-                                }}
-                                title="Disconnect"
-                                className="tui-btn"
-                                style={{
-                                    background: "transparent",
-                                    border: "1px solid var(--border)",
-                                    color: "var(--danger)",
-                                    width: 26,
-                                    height: 26,
                                     display: "flex",
+                                    justifyContent: "space-between",
                                     alignItems: "center",
-                                    justifyContent: "center",
+                                    padding: "13px 20px",
+                                    fontSize: 12.5,
                                     cursor: "pointer",
-                                    borderRadius: 2,
                                 }}
                             >
-                                <Trash2 size={13} />
-                            </button>
-                            <ChevronRight size={14} color="var(--text-muted)" />
+                                <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                                    {isOpen ? (
+                                        <ChevronDown size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                                    ) : (
+                                        <ChevronRight size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
+                                    )}
+                                    <StatusBadge status={a.status === "online" ? "online" : "offline"} />
+                                    <span style={{ fontWeight: 600 }}>{a.name}</span>
+                                    <span
+                                        style={{
+                                            color: "var(--text-muted)",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            maxWidth: 320,
+                                        }}
+                                    >
+                                        {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
+                                    </span>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
+                                    <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>
+                                    <button
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            remove(a.id);
+                                        }}
+                                        title="Disconnect"
+                                        className="tui-btn"
+                                        style={{
+                                            background: "transparent",
+                                            border: "1px solid var(--border)",
+                                            color: "var(--danger)",
+                                            width: 26,
+                                            height: 26,
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: "pointer",
+                                            borderRadius: 2,
+                                        }}
+                                    >
+                                        <Trash2 size={13} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {isOpen && (
+                                <div style={{ paddingBottom: 6 }}>
+                                    {DEVICE_SECTIONS.map((s) => (
+                                        <Link
+                                            key={s.id}
+                                            to={`/apps/${a.id}#${s.id}`}
+                                            className="mono"
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 10,
+                                                padding: "9px 20px 9px 50px",
+                                                fontSize: 12,
+                                                color: "var(--text-secondary)",
+                                                textDecoration: "none",
+                                            }}
+                                        >
+                                            <s.icon size={13} color="var(--text-muted)" />
+                                            {s.label}
+                                        </Link>
+                                    ))}
+                                </div>
+                            )}
                         </div>
-                    </Link>
-                ))}
+                    );
+                })}
             </Panel>
         </div>
     );

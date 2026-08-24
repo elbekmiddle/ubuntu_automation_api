@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, useLocation, Link } from "react-router-dom";
 import {
     ChevronLeft,
     RefreshCw,
@@ -78,6 +78,7 @@ function MetricPanel({ icon: Icon, label, value, sub, pct }) {
 
 export default function AppDetail() {
     const { id } = useParams();
+    const location = useLocation();
     const [app, setApp] = useState(null);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
@@ -100,6 +101,15 @@ export default function AppDetail() {
         const interval = setInterval(load, pollMs);
         return () => clearInterval(interval);
     }, [load, pollMs]);
+
+    // Device tree navigatsiyasidan `#hardware`, `#terminal` va h.k. bilan
+    // kelinganda shu bo'limga scroll qilamiz — react-router hash uchun
+    // avtomatik scroll qilmaydi.
+    useEffect(() => {
+        if (!app || !location.hash) return;
+        const el = document.getElementById(location.hash.slice(1));
+        el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, [app, location.hash]);
 
     const remove = async () => {
         if (!window.confirm("Disconnect this device? The agent will stop being authorized.")) return;
@@ -146,7 +156,7 @@ export default function AppDetail() {
                 }
             />
 
-            <SectionLabel index="01">overview</SectionLabel>
+            <SectionLabel index="01" id="overview">overview</SectionLabel>
             <Panel style={{ padding: "18px 22px", marginBottom: 32, display: "flex", flexWrap: "wrap", gap: 32 }}>
                 <DetailField icon={Server} label="Hostname" value={app.hostname ?? "—"} />
                 <DetailField icon={Server} label="OS" value={`${app.os_platform ?? "—"} ${app.os_release ?? ""}`.trim()} />
@@ -156,7 +166,7 @@ export default function AppDetail() {
                 <DetailField icon={Server} label="Machine ID" value={app.machine_id ? app.machine_id.slice(0, 16) + "…" : "—"} />
             </Panel>
 
-            <SectionLabel index="02">system</SectionLabel>
+            <SectionLabel index="02" id="hardware">system</SectionLabel>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 14, marginBottom: 32 }}>
                 <MetricPanel icon={Cpu} label="CPU" value={metrics.cpu != null ? `${metrics.cpu}%` : "—"} pct={metrics.cpu} />
                 <MetricPanel
@@ -200,7 +210,7 @@ export default function AppDetail() {
                 />
             </div>
 
-            <SectionLabel index="03">ports</SectionLabel>
+            <SectionLabel index="03" id="network">ports</SectionLabel>
             <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
                 {!metrics.ports && (
                     <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
@@ -239,7 +249,7 @@ export default function AppDetail() {
                 ))}
             </Panel>
 
-            <SectionLabel index="04">terminal</SectionLabel>
+            <SectionLabel index="04" id="terminal">terminal</SectionLabel>
             <div style={{ marginBottom: 32 }}>
                 <DeviceTerminal appId={app.id} canConnect={canConnect} />
             </div>

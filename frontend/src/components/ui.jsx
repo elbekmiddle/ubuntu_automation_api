@@ -55,9 +55,9 @@ export function AsciiBar({ pct = 0, width = 10 }) {
   );
 }
 
-export function SectionLabel({ index, children }) {
+export function SectionLabel({ index, children, id }) {
   return (
-    <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16 }}>
+    <div id={id} style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 16, scrollMarginTop: 84 }}>
       <span className="mono" style={{ color: "var(--border-strong)", fontSize: 12 }}>
         {index ? `[${index}]` : "─"}
       </span>
