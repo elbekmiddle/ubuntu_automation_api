@@ -9,10 +9,12 @@ import { UsersRepository } from './users.repository';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtGuard } from './optional-jwt.guard';
+import { OrganizationsModule } from '../organizations/organizations.module';
 
 @Module({
     imports: [
         DatabaseModule,
+        OrganizationsModule,
 
         JwtModule.registerAsync({
             imports: [ConfigModule],

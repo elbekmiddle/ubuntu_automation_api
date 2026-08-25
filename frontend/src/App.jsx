@@ -15,6 +15,7 @@ import Devices from "./pages/Devices";
 import Apps from "./pages/Apps";
 import AppDetail from "./pages/AppDetail";
 import AuditLogs from "./pages/AuditLogs";
+import Organizations from "./pages/Organizations";
 import Login from "./pages/Login";
 
 export default function App() {
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/apps" element={<Apps />} />
           <Route path="/apps/:id" element={<AppDetail />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
+          <Route path="/organizations" element={<Organizations />} />
           <Route path="/login" element={<Login />} />
         </Route>
       </Routes>

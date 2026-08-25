@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
     RefreshCw,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button, StatusBadge } from "../components/ui";
+import DeviceSelector, { EMPTY_FILTERS, applyDeviceFilters } from "../components/DeviceSelector";
 
 function timeAgo(iso) {
     if (!iso) return "—";
@@ -45,6 +46,7 @@ export default function Apps() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState(null);
     const [expanded, setExpanded] = useState(() => new Set());
+    const [filters, setFilters] = useState(EMPTY_FILTERS);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -78,6 +80,7 @@ export default function Apps() {
     };
 
     const online = apps.filter((a) => a.status === "online").length;
+    const filteredApps = useMemo(() => applyDeviceFilters(apps, filters), [apps, filters]);
 
     return (
         <div>
@@ -100,6 +103,10 @@ export default function Apps() {
                 </Panel>
             )}
 
+            {apps.length > 0 && (
+                <DeviceSelector apps={apps} filters={filters} onChange={setFilters} resultCount={filteredApps.length} />
+            )}
+
             <SectionLabel index="—">devices</SectionLabel>
             <Panel>
                 {apps.length === 0 && (
@@ -112,7 +119,14 @@ export default function Apps() {
                         </div>
                     </EmptyState>
                 )}
-                {apps.map((a, i) => {
+                {apps.length > 0 && filteredApps.length === 0 && (
+                    <EmptyState>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span>no devices match these filters</span>
+                        </div>
+                    </EmptyState>
+                )}
+                {filteredApps.map((a, i) => {
                     const isOpen = expanded.has(a.id);
                     return (
                         <div key={a.id} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
@@ -147,6 +161,27 @@ export default function Apps() {
                                     >
                                         {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
                                     </span>
+                                    {a.tags?.length > 0 && (
+                                        <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
+                                            {a.tags.slice(0, 3).map((t) => (
+                                                <span
+                                                    key={t}
+                                                    style={{
+                                                        fontSize: 10,
+                                                        padding: "2px 7px",
+                                                        borderRadius: 3,
+                                                        border: "1px solid var(--border)",
+                                                        color: "var(--text-secondary)",
+                                                    }}
+                                                >
+                                                    #{t}
+                                                </span>
+                                            ))}
+                                            {a.tags.length > 3 && (
+                                                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                                     <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText, Globe, Activity, LogIn, LogOut, User } from "lucide-react";
+import { LayoutDashboard, Boxes, ListTodo, PanelLeftClose, PanelLeftOpen, Clock, MonitorSmartphone, ScrollText, Globe, Activity, LogIn, LogOut, User, Users } from "lucide-react";
 import { useAuth } from "../lib/auth";
 
 const NAV = [
@@ -10,6 +10,7 @@ const NAV = [
   { to: "/jobs", label: "jobs", icon: ListTodo },
   { to: "/schedules", label: "schedules", icon: Clock },
   { to: "/apps", label: "devices", icon: MonitorSmartphone },
+  { to: "/organizations", label: "organizations", icon: Users },
   { to: "/devices", label: "traffic log", icon: Activity },
   { to: "/audit-logs", label: "audit log", icon: ScrollText },
 ];

@@ -14,6 +14,7 @@ export interface AppRow {
     os_platform: string | null;
     os_release: string | null;
     last_metrics: Record<string, unknown>;
+    tags: string[];
     created_at: Date;
     updated_at: Date;
 }
@@ -119,5 +120,14 @@ export class AppsRepository {
 
     async markOffline(id: string) {
         await this.db.query(`UPDATE apps SET status = 'offline', updated_at = now() WHERE id = $1`, [id]);
+    }
+
+    /** Ownership DB darajasida ham tekshiriladi (`WHERE ... AND user_id = $3`). */
+    async updateTags(id: string, userId: string, tags: string[]): Promise<AppRow | null> {
+        const { rows } = await this.db.query<AppRow>(
+            `UPDATE apps SET tags = $3, updated_at = now() WHERE id = $1 AND user_id = $2 RETURNING *`,
+            [id, userId, tags],
+        );
+        return rows[0] ?? null;
     }
 }

@@ -17,6 +17,7 @@ import { SchedulesModule } from './modules/schedules/schedules.module';
 import { DistroConfigsModule } from './modules/distro-configs/distro-configs.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { AppsModule } from './modules/apps/apps.module';
+import { OrganizationsModule } from './modules/organizations/organizations.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { AppsModule } from './modules/apps/apps.module';
     SchedulesModule,
     DistroConfigsModule,
     AppsModule,
+    OrganizationsModule,
   ],
 
   providers: [

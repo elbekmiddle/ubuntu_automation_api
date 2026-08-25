@@ -114,6 +114,23 @@ export class AppsService {
     }
 
     /**
+     * Tag'larni normallashtiradi (trim, lowercase, bo'shlarini tashlaydi,
+     * takrorlanadiganlarini birlashtiradi) — shunda "Prod", "prod ", "prod"
+     * DeviceSelector filtrida uchtaga bo'linib ketmaydi.
+     */
+    async updateTags(userId: string, id: string, rawTags: string[]) {
+        const tags = [...new Set(rawTags.map((t) => t.trim().toLowerCase()).filter(Boolean))];
+        const app = await this.repo.updateTags(id, userId, tags);
+        if (!app) {
+            throw new NotFoundException({
+                code: APP_ERROR_CODES.NOT_FOUND,
+                message: `${APP_ERRORS[APP_ERROR_CODES.NOT_FOUND]}: "${id}"`,
+            });
+        }
+        return withComputedStatus(app);
+    }
+
+    /**
      * Ownership tekshiruvisiz — JobsService kabi boshqa modullar ichida
      * "bu appId haqiqatan mavjudmi va hozir onlaynmi" deb tekshirish uchun.
      */

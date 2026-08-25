@@ -339,6 +339,27 @@ function getNetwork(): NetworkInterfaceInfo[] {
     return result;
 }
 
+export interface DockerContainer {
+    ID: string;
+    Names: string;
+    Image: string;
+    Command: string;
+    CreatedAt: string;
+    RunningFor: string;
+    State: string;
+    Status: string;
+    Ports: string;
+    Size: string;
+    Labels: string;
+    Mounts: string;
+    Networks: string;
+    LocalVolumes: string;
+    // Docker Desktop ba'zan qo'shimcha maydonlar (masalan Platform, HealthStatus)
+    // qaytaradi — bular Docker Engine'ning standart `docker ps` formatida
+    // yo'q, shuning uchun majburiy emas, lekin kelsa saqlab qolamiz.
+    [key: string]: unknown;
+}
+
 export interface DockerStatus {
     /** `docker` CLI mashinada topildimi (daemon holatidan qat'i nazar). */
     installed: boolean;
@@ -346,7 +367,7 @@ export interface DockerStatus {
     engineRunning: boolean;
     running: boolean;
     version: string | null;
-    containers: Array<{ ID: string; Names: string; State: string; Ports: string }>;
+    containers: DockerContainer[];
 }
 
 /**
@@ -367,6 +388,12 @@ export interface DockerStatus {
  * bo'ladi — agent systemd (system) service sifatida ishga tushirilgan bo'lsa
  * bu o'zgaruvchi yo'q bo'lishi mumkin, shuning uchun standart
  * `/run/user/<uid>` yo'lini fallback sifatida qo'shib ko'ramiz.
+ *
+ * Konteyner ro'yxati `--format "{{json .}}"` bilan olinadi (backend'dagi
+ * `SystemService.getDocker()` bilan bir xil usul) — ilgari faqat
+ * ID/Names/State/Ports 4ta maydon qo'lda parse qilinardi, endi Docker
+ * o'zi beradigan hamma maydon (Image, Command, CreatedAt, RunningFor,
+ * Size, Labels, Mounts, Networks, va h.k.) saqlanadi.
  */
 async function getDocker(): Promise<DockerStatus> {
     const empty: DockerStatus = { installed: false, engineRunning: false, running: false, version: null, containers: [] };
@@ -385,19 +412,20 @@ async function getDocker(): Promise<DockerStatus> {
         XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? ''}`,
     };
 
-    async function tryPs(env: NodeJS.ProcessEnv) {
-        const { stdout } = await execAsync(
-            `docker ps --format "{{.ID}}|{{.Names}}|{{.State}}|{{.Ports}}"`,
-            { env },
-        );
+    async function tryPs(env: NodeJS.ProcessEnv): Promise<DockerContainer[]> {
+        const { stdout } = await execAsync(`docker ps --format "{{json .}}"`, { env });
         return stdout
             .trim()
             .split('\n')
             .filter(Boolean)
             .map((line) => {
-                const [ID, Names, State, Ports] = line.split('|');
-                return { ID, Names, State: State ?? 'running', Ports: Ports ?? '' };
-            });
+                try {
+                    return JSON.parse(line) as DockerContainer;
+                } catch {
+                    return null;
+                }
+            })
+            .filter((c): c is DockerContainer => c !== null);
     }
 
     try {

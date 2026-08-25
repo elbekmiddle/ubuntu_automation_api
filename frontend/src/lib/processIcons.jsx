@@ -1,6 +1,6 @@
 import {
     MessageCircle,
-    Globe2Icon,
+    Globe,
     Flame,
     Hexagon,
     Database,
@@ -11,7 +11,6 @@ import {
     Server,
     Coffee,
     Code2,
-    Globe,
     Terminal,
     Plug,
 } from "lucide-react";
@@ -23,7 +22,7 @@ import {
 const PROCESS_MAP = [
     { test: /telegram/i, icon: MessageCircle, color: "#29a9eb", label: "Telegram" },
     { test: /firefox/i, icon: Flame, color: "#ff7139", label: "Firefox" },
-    { test: /(chrome|chromium|cef_server)/i, icon: Globe2Icon, color: "#4285f4", label: "Chrome" },
+    { test: /(chrome|chromium|cef_server)/i, icon: Globe, color: "#4285f4", label: "Chrome" },
     { test: /^node$/i, icon: Hexagon, color: "#5fa04e", label: "Node.js" },
     { test: /(postgres|postgresql)/i, icon: Database, color: "#336791", label: "PostgreSQL" },
     { test: /redis/i, icon: Zap, color: "#dc382d", label: "Redis" },

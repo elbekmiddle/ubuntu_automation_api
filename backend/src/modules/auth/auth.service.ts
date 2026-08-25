@@ -11,6 +11,7 @@ import * as crypto from 'crypto';
 import { UsersRepository, User } from './users.repository';
 import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { AUTH_ERROR_CODES, AUTH_ERRORS } from '../../config/errors/auth-error-code';
+import { OrganizationsService } from '../organizations/organizations.service';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -50,6 +51,7 @@ export class AuthService {
         private readonly refreshTokensRepo: RefreshTokensRepository,
         private readonly jwtService: JwtService,
         private readonly config: ConfigService,
+        private readonly organizationsService: OrganizationsService,
     ) {
         this.refreshTtlMs = Number(this.config.get('JWT_REFRESH_TTL_MS') ?? 30 * 24 * 60 * 60 * 1000);
     }
@@ -66,6 +68,13 @@ export class AuthService {
         const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
         const user = await this.usersRepo.create(email, passwordHash, name ?? null);
         this.logger.log(`Registered new user: ${user.email}`);
+
+        // Har bir yangi user shaxsiy workspace bilan boshlaydi (Organizations
+        // moduli) va agar undan oldin biror tashkilotga email orqali
+        // taklif qilingan bo'lsa ("pending" invite), shu a'zoliklar endi
+        // uning user_id'siga bog'lanadi.
+        await this.organizationsService.createPersonalWorkspace(user.id, user.email, user.name);
+        await this.organizationsService.linkPendingInvites(user.id, user.email);
 
         const tokens = await this.issueTokens(user, deviceId);
         return { user: toPublicUser(user), tokens };

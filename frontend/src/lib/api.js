@@ -412,13 +412,59 @@ export const api = {
           }),
         }),
 
+    updateTags: (id, tags) =>
+        request(`/apps/${id}/tags`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            tags,
+          }),
+        }),
+
     remove: (id) =>
         request(`/apps/${id}`, {
           method: "DELETE",
         }),
   },
 
-  // ============================================================
+  organizations: {
+    list: () =>
+        request("/organizations"),
+
+    get: (id) =>
+        request(`/organizations/${id}`),
+
+    create: (name) =>
+        request("/organizations", {
+          method: "POST",
+          body: JSON.stringify({ name }),
+        }),
+
+    remove: (id) =>
+        request(`/organizations/${id}`, {
+          method: "DELETE",
+        }),
+
+    listMembers: (id) =>
+        request(`/organizations/${id}/members`),
+
+    inviteMember: (id, email, role) =>
+        request(`/organizations/${id}/members`, {
+          method: "POST",
+          body: JSON.stringify({ email, role }),
+        }),
+
+    updateMemberRole: (id, memberId, role) =>
+        request(`/organizations/${id}/members/${memberId}/role`, {
+          method: "PATCH",
+          body: JSON.stringify({ role }),
+        }),
+
+    removeMember: (id, memberId) =>
+        request(`/organizations/${id}/members/${memberId}`, {
+          method: "DELETE",
+        }),
+  },
+
   // AUDIT LOGS
   // ============================================================
 

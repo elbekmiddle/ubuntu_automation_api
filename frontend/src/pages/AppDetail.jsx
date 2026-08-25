@@ -15,6 +15,9 @@ import {
     Wifi,
     Search,
     Settings2,
+    Tag,
+    Plus,
+    X,
     CheckCircle2,
     XCircle,
     Circle,
@@ -130,6 +133,76 @@ function ServiceStatusChip({ active }) {
     );
 }
 
+/** DeviceSelector target-selector filtrida ishlatiladigan tag'larni bu yerdan qo'shib/o'chirish mumkin. */
+function TagEditor({ tags, onChange, saving }) {
+    const [input, setInput] = useState("");
+
+    const commit = () => {
+        const t = input.trim().toLowerCase();
+        if (!t || tags.includes(t)) {
+            setInput("");
+            return;
+        }
+        onChange([...tags, t]);
+        setInput("");
+    };
+
+    const remove = (t) => onChange(tags.filter((x) => x !== t));
+
+    return (
+        <div style={{ minWidth: 220, flex: "1 1 260px" }}>
+            <div className="eyebrow" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                <Tag size={11} /> Tags
+            </div>
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6 }}>
+                {tags.map((t) => (
+                    <span
+                        key={t}
+                        className="mono"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            fontSize: 11,
+                            padding: "3px 6px 3px 9px",
+                            borderRadius: 3,
+                            border: "1px solid var(--border)",
+                            color: "var(--text-secondary)",
+                        }}
+                    >
+                        #{t}
+                        <X size={10} style={{ cursor: "pointer" }} onClick={() => remove(t)} />
+                    </span>
+                ))}
+                <input
+                    className="mono"
+                    value={input}
+                    disabled={saving}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === ",") {
+                            e.preventDefault();
+                            commit();
+                        }
+                    }}
+                    onBlur={commit}
+                    placeholder="add tag…"
+                    style={{
+                        width: 90,
+                        background: "transparent",
+                        border: "1px dashed var(--border)",
+                        borderRadius: 3,
+                        padding: "3px 8px",
+                        fontSize: 11,
+                        color: "var(--text)",
+                        outline: "none",
+                    }}
+                />
+            </div>
+        </div>
+    );
+}
+
 export default function AppDetail() {
     const { id } = useParams();
     const location = useLocation();
@@ -174,6 +247,19 @@ export default function AppDetail() {
     const [processFilter, setProcessFilter] = useState("");
     const [serviceFilter, setServiceFilter] = useState("");
     const [serviceStatusFilter, setServiceStatusFilter] = useState("all");
+    const [savingTags, setSavingTags] = useState(false);
+
+    const saveTags = async (nextTags) => {
+        setSavingTags(true);
+        try {
+            const updated = await api.apps.updateTags(id, nextTags);
+            setApp(updated);
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setSavingTags(false);
+        }
+    };
 
     const metricsForFilters = app?.last_metrics ?? {};
 
@@ -243,6 +329,7 @@ export default function AppDetail() {
                 <DetailField icon={Clock} label="Last seen" value={timeAgo(app.last_seen_at)} />
                 <DetailField icon={Clock} label="Connected since" value={new Date(app.created_at).toLocaleString()} />
                 <DetailField icon={Server} label="Machine ID" value={app.machine_id ? app.machine_id.slice(0, 16) + "…" : "—"} />
+                <TagEditor tags={app.tags ?? []} onChange={saveTags} saving={savingTags} />
             </Panel>
 
             <SectionLabel index="02" id="hardware">system</SectionLabel>
