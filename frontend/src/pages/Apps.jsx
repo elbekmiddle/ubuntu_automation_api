@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
     RefreshCw,
@@ -8,8 +8,6 @@ import {
     LayoutDashboard,
     Cpu,
     Plug,
-    ListTree,
-    Settings2,
     TerminalSquare,
 } from "lucide-react";
 import { api } from "../lib/api";
@@ -29,15 +27,13 @@ function timeAgo(iso) {
 
 // Har bir device tree tugunining bolalari — hozircha faqat haqiqatan
 // mavjud bo'lgan bo'limlar (AppDetail'dagi SectionLabel id'lariga mos).
-// Tasks/Logs/Audit — roadmap'da bor, lekin backend'da hali telemetriya
-// yo'q, shuning uchun bu yerga soxta link qo'shilmaydi (qo'shilganda shu
-// ro'yxatga qator sifatida qo'shiladi).
+// Network/Processes/Services/Tasks/Logs/Audit — roadmap'da bor, lekin
+// backend'da hali telemetriya yo'q, shuning uchun bu yerga soxta link
+// qo'shilmaydi (qo'shilganda shu ro'yxatga qator sifatida qo'shiladi).
 const DEVICE_SECTIONS = [
     { id: "overview", label: "overview", icon: LayoutDashboard },
     { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
     { id: "network", label: "network · ports", icon: Plug },
-    { id: "processes", label: "processes", icon: ListTree },
-    { id: "services", label: "services", icon: Settings2 },
     { id: "terminal", label: "terminal", icon: TerminalSquare },
 ];
 
@@ -80,7 +76,7 @@ export default function Apps() {
     };
 
     const online = apps.filter((a) => a.status === "online").length;
-    const filteredApps = useMemo(() => applyDeviceFilters(apps, filters), [apps, filters]);
+    const filtered = applyDeviceFilters(apps, filters);
 
     return (
         <div>
@@ -104,7 +100,7 @@ export default function Apps() {
             )}
 
             {apps.length > 0 && (
-                <DeviceSelector apps={apps} filters={filters} onChange={setFilters} resultCount={filteredApps.length} />
+                <DeviceSelector apps={apps} filters={filters} onChange={setFilters} resultCount={filtered.length} />
             )}
 
             <SectionLabel index="—">devices</SectionLabel>
@@ -119,14 +115,12 @@ export default function Apps() {
                         </div>
                     </EmptyState>
                 )}
-                {apps.length > 0 && filteredApps.length === 0 && (
+                {apps.length > 0 && filtered.length === 0 && (
                     <EmptyState>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                            <span>no devices match these filters</span>
-                        </div>
+                        <span>no devices match these filters</span>
                     </EmptyState>
                 )}
-                {filteredApps.map((a, i) => {
+                {filtered.map((a, i) => {
                     const isOpen = expanded.has(a.id);
                     return (
                         <div key={a.id} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
@@ -161,27 +155,6 @@ export default function Apps() {
                                     >
                                         {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
                                     </span>
-                                    {a.tags?.length > 0 && (
-                                        <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
-                                            {a.tags.slice(0, 3).map((t) => (
-                                                <span
-                                                    key={t}
-                                                    style={{
-                                                        fontSize: 10,
-                                                        padding: "2px 7px",
-                                                        borderRadius: 3,
-                                                        border: "1px solid var(--border)",
-                                                        color: "var(--text-secondary)",
-                                                    }}
-                                                >
-                                                    #{t}
-                                                </span>
-                                            ))}
-                                            {a.tags.length > 3 && (
-                                                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                                     <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>
@@ -216,9 +189,6 @@ export default function Apps() {
                                     {DEVICE_SECTIONS.map((s) => (
                                         <Link
                                             key={s.id}
-                                            // "overview" — sahifaning standart (hash'siz) holati:
-                                            // /apps/:id ochilganda allaqachon eng tepada overview
-                                            // ko'rinadi, shuning uchun unga alohida #overview qo'shmaymiz.
                                             to={s.id === "overview" ? `/apps/${a.id}` : `/apps/${a.id}#${s.id}`}
                                             className="mono"
                                             style={{

@@ -188,97 +188,6 @@ async function collectPortsNow(): Promise<PortInfo[] | null> {
     }
 }
 
-export interface ProcessInfo {
-    pid: number;
-    user: string;
-    cpu: number;
-    mem: number;
-    command: string;
-}
-
-const MAX_PROCESSES = 25;
-
-/**
- * `ps -eo pid,user,%cpu,%mem,comm --sort=-%cpu` orqali CPU bo'yicha eng
- * yuqori N ta jarayonni oladi. `comm` (executable basename, argumentlarsiz)
- * ishlatiladi — `args` emas — chunki komandalar ba'zan probel/maxfiy
- * argumentlarni o'z ichiga oladi va bu yerda faqat "nima ishlayapti" degan
- * umumiy ko'rinish kerak (frontend `processIcons.jsx` ham shu qisqa nomga
- * qarab ikonka tanlaydi).
- */
-async function collectProcessesNow(): Promise<ProcessInfo[] | null> {
-    try {
-        const { stdout } = await execAsync(
-            `ps -eo pid,user:20,%cpu,%mem,comm --sort=-%cpu --no-headers | head -n ${MAX_PROCESSES}`,
-        );
-        return stdout
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean)
-            .map((line) => {
-                const cols = line.split(/\s+/);
-                const [pidStr, user, cpuStr, memStr, ...commParts] = cols;
-                const pid = Number(pidStr);
-                const cpu = Number(cpuStr);
-                const mem = Number(memStr);
-                const command = commParts.join(' ') || '?';
-                if (!Number.isFinite(pid)) return null;
-                return {
-                    pid,
-                    user,
-                    cpu: Number.isFinite(cpu) ? cpu : 0,
-                    mem: Number.isFinite(mem) ? mem : 0,
-                    command,
-                };
-            })
-            .filter((p): p is ProcessInfo => p !== null);
-    } catch {
-        return null;
-    }
-}
-
-export interface ServiceInfo {
-    name: string;
-    load: string;
-    active: 'active' | 'inactive' | 'failed' | string;
-    sub: string;
-    description: string;
-}
-
-const MAX_SERVICES = 300;
-
-/**
- * `systemctl list-units --type=service` — faqat systemd bo'lgan
- * distributivlarda ishlaydi (Ubuntu shu jumladan). Systemd yo'q bo'lsa
- * (masalan konteyner ichida) buyruq topilmaydi — `null` qaytadi, frontend
- * "device offline/ma'lumot yo'q" holatidagi kabi buni "qo'llab-
- * quvvatlanmaydi" deb ko'rsatadi (ports/network bilan bir xil falsafa).
- */
-async function collectServicesNow(): Promise<ServiceInfo[] | null> {
-    try {
-        const { stdout } = await execAsync(
-            'systemctl list-units --type=service --all --no-legend --no-pager --plain 2>/dev/null',
-        );
-        return stdout
-            .split('\n')
-            .map((line) => line.trim())
-            .filter(Boolean)
-            .slice(0, MAX_SERVICES)
-            .map((line) => {
-                // UNIT LOAD ACTIVE SUB DESCRIPTION — birinchi 4ta ustun bo'sh
-                // joy bilan ajratilgan, description qolgan hammasi (ichida
-                // probel bo'lishi mumkin).
-                const match = line.match(/^(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*(.*)$/);
-                if (!match) return null;
-                const [, name, load, active, sub, description] = match;
-                return { name, load, active, sub, description: description || '' };
-            })
-            .filter((s): s is ServiceInfo => s !== null);
-    } catch {
-        return null;
-    }
-}
-
 /** Linux'da `free -b` orqali swap holatini oladi; boshqa platformalarda yoki topilmasa `null`. */
 async function getSwap(): Promise<{ total: number; used: number; usedPercent: number } | null> {
     if (process.platform !== 'linux') return null;
@@ -339,27 +248,6 @@ function getNetwork(): NetworkInterfaceInfo[] {
     return result;
 }
 
-export interface DockerContainer {
-    ID: string;
-    Names: string;
-    Image: string;
-    Command: string;
-    CreatedAt: string;
-    RunningFor: string;
-    State: string;
-    Status: string;
-    Ports: string;
-    Size: string;
-    Labels: string;
-    Mounts: string;
-    Networks: string;
-    LocalVolumes: string;
-    // Docker Desktop ba'zan qo'shimcha maydonlar (masalan Platform, HealthStatus)
-    // qaytaradi — bular Docker Engine'ning standart `docker ps` formatida
-    // yo'q, shuning uchun majburiy emas, lekin kelsa saqlab qolamiz.
-    [key: string]: unknown;
-}
-
 export interface DockerStatus {
     /** `docker` CLI mashinada topildimi (daemon holatidan qat'i nazar). */
     installed: boolean;
@@ -367,7 +255,7 @@ export interface DockerStatus {
     engineRunning: boolean;
     running: boolean;
     version: string | null;
-    containers: DockerContainer[];
+    containers: Array<{ ID: string; Names: string; State: string; Ports: string }>;
 }
 
 /**
@@ -388,12 +276,6 @@ export interface DockerStatus {
  * bo'ladi — agent systemd (system) service sifatida ishga tushirilgan bo'lsa
  * bu o'zgaruvchi yo'q bo'lishi mumkin, shuning uchun standart
  * `/run/user/<uid>` yo'lini fallback sifatida qo'shib ko'ramiz.
- *
- * Konteyner ro'yxati `--format "{{json .}}"` bilan olinadi (backend'dagi
- * `SystemService.getDocker()` bilan bir xil usul) — ilgari faqat
- * ID/Names/State/Ports 4ta maydon qo'lda parse qilinardi, endi Docker
- * o'zi beradigan hamma maydon (Image, Command, CreatedAt, RunningFor,
- * Size, Labels, Mounts, Networks, va h.k.) saqlanadi.
  */
 async function getDocker(): Promise<DockerStatus> {
     const empty: DockerStatus = { installed: false, engineRunning: false, running: false, version: null, containers: [] };
@@ -412,20 +294,19 @@ async function getDocker(): Promise<DockerStatus> {
         XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? ''}`,
     };
 
-    async function tryPs(env: NodeJS.ProcessEnv): Promise<DockerContainer[]> {
-        const { stdout } = await execAsync(`docker ps --format "{{json .}}"`, { env });
+    async function tryPs(env: NodeJS.ProcessEnv) {
+        const { stdout } = await execAsync(
+            `docker ps --format "{{.ID}}|{{.Names}}|{{.State}}|{{.Ports}}"`,
+            { env },
+        );
         return stdout
             .trim()
             .split('\n')
             .filter(Boolean)
             .map((line) => {
-                try {
-                    return JSON.parse(line) as DockerContainer;
-                } catch {
-                    return null;
-                }
-            })
-            .filter((c): c is DockerContainer => c !== null);
+                const [ID, Names, State, Ports] = line.split('|');
+                return { ID, Names, State: State ?? 'running', Ports: Ports ?? '' };
+            });
     }
 
     try {
@@ -455,13 +336,8 @@ export interface HeartbeatMetrics {
     loadavg: number[];
     uptime: number;
     ports: PortInfo[] | null;
-    processes: ProcessInfo[] | null;
-    services: ServiceInfo[] | null;
     [key: string]: unknown;
 }
-
-let processesCache: ProcessInfo[] | null = null;
-let servicesCache: ServiceInfo[] | null = null;
 
 export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
     const [cpu, disk, swap, docker] = await Promise.all([
@@ -471,20 +347,11 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
         getDocker(),
     ]);
 
-    // Portlar, jarayonlar va xizmatlarni har bir heartbeatda emas, har
-    // ~3-heartbeatda (taxminan 60s) yangilaymiz — bularning har biri
-    // (`ss`, `ps`, `systemctl`) alohida process spawn qiladi va tez-tez
-    // shart emas (portlar bilan bir xil mantiq — izohga qarang).
+    // Portlarni har bir heartbeatda emas, har ~3-heartbeatda (taxminan 60s)
+    // yangilaymiz — `ss` chaqirish CPU'ga og'irroq, tez-tez shart emas.
     heartbeatCounter++;
     if (portsCache === null || heartbeatCounter % 3 === 1) {
-        const [ports, processes, services] = await Promise.all([
-            collectPortsNow(),
-            collectProcessesNow(),
-            collectServicesNow(),
-        ]);
-        portsCache = ports;
-        processesCache = processes;
-        servicesCache = services;
+        portsCache = await collectPortsNow();
     }
 
     return {
@@ -499,7 +366,5 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
         loadavg: os.loadavg(),
         uptime: os.uptime(),
         ports: portsCache,
-        processes: processesCache,
-        services: servicesCache,
     };
 }

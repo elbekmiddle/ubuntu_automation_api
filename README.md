@@ -67,16 +67,21 @@ Ushbu ro'yxat brainstorm suhbatidan (Screenctl'ni Microsoft/Apple/startup'larga 
 - [x] **Network** — agent endi `os.networkInterfaces()` orqali interfeys ro'yxatini (nom, IPv4 address, MAC) heartbeat bilan yuboradi; `/apps/:id#network` bo'limida ko'rinadi (ports bilan bir joyda). Node'ning o'z API'si — Linux/Windows/macOS'da bir xil ishlaydi, kelajakdagi Windows/macOS agent buni qayta yozishi shart emas
 - [x] Device tree navigatsiyasi — `/apps` sahifasida har bir device kengaytiriladigan tugun, ichida mavjud bo'limlarga (`overview`/`hardware`/`network`/`terminal`) to'g'ridan-to'g'ri link (`/apps/:id#hardware`). Docker/Processes/Services/Tasks/Logs/Audit alohida tab sifatida hali yo'q — hozircha "hardware" tugunining bir qismi (Docker) yoki umuman backend telemetriyasi yo'q (Processes/Services), shuning uchun soxta link qo'shilmadi
 
+### ✅ Bajarildi (2026-08-25 sessiyasidan qo'shildi)
+
+- [x] **Target selector** (`DeviceSelector`) — platform/tags/OS-versiya/online holati bo'yicha filtrlash. Frontend'da `/apps` va `/fleet` sahifalarida client-side filtrlash (`components/DeviceSelector.jsx`) + backend'da `POST /apps/select` (platform/tags/online — AND mantig'ida, tags ro'yxati ichida OR). Teglarni saqlash uchun `apps.tags text[]` ustuni (`009_apps_tags.sql`) va `PATCH /apps/:id/tags` — lekin teglarni UI orqali qo'yish/o'chirish oynasi hali yo'q (hozircha faqat API orqali)
+- [x] **Fleet automation** (asosiy oqim) — yangi `/fleet` sahifasi: target selector bilan device'larni tanlaysiz, shablon+action tanlaysiz, "Run on N" bosasiz — har bir online device uchun alohida job yaratiladi (`POST /jobs` + `appId`, mavjud bitta-device job API'si), natijalar shu sahifada real-time poll qilinadi (success/failed/running/queued/offline). **Muhim cheklov**: bu alohida "fleet_runs" jadvaliga yozilmaydi — sahifa yopilsa umumiy progress ko'rinishi yo'qoladi (har bir job o'zi backend'da alohida davom etadi va `/jobs/:id`da ko'rinadi, faqat "N tadan M tasi tugadi" degan yig'ma ko'rinish yo'qoladi). Progress bar bilan to'liq persisted fleet-run tarixi (FleetRuns ro'yxati, FleetRunDetail) — hali qo'lga olinmagan
+- [x] **Organizations / Teams — RBAC** — `organizations`/`organization_members` jadvallari (`010_organizations_rbac.sql`), rol ierarxiyasi owner>admin>developer>operator>viewer (`RolesGuard`+`@Roles()`), `POST/GET /organizations`, a'zolarni taklif qilish/rolini o'zgartirish/o'chirish. Har bir yangi ro'yxatdan o'tgan user avtomatik shaxsiy workspace bilan boshlaydi. **Hali yo'q**: frontend UI (org switcher, a'zolar sahifasi) va apps/jobs'ning organization_id bo'yicha to'liq scope qilinishi (`apps.organization_id` ustuni migration'da bor, lekin service darajasida hali ishlatilmaydi — hozircha hamma narsa avvalgidek `user_id` bo'yicha ishlaydi)
+
 ### 🚧 Navbatda
 
 - [ ] Windows agent
 - [ ] macOS agent
-- [ ] Device tree'ga Processes/Services alohida bo'lim sifatida qo'shish — buning uchun avval agentga shu ma'lumotlarni yig'ish kerak (hozir faqat cpu/memory/swap/disk/docker/ports bor)
-- [ ] Target selector (`DeviceSelector`: platform, tags, os version, online holati bo'yicha)
-- [ ] Fleet automation — "1000 ta mashinada shu commandni bajar", progress bar bilan (success/failed/offline)
+- [ ] Device tree'ga Processes/Services alohida bo'lim sifatida qo'shish — buning uchun avval agentga shu ma'lumotlarni yig'ish kerak (hozir faqat cpu/memory/swap/disk/docker/network/ports bor)
+- [ ] To'liq persisted Fleet Run tarixi (`fleet_runs`/`fleet_run_targets` jadvallari, `FleetRuns.jsx` ro'yxat sahifasi, `FleetRunDetail.jsx`) — hozirgi `/fleet` sahifasi shuning soddalashtirilgan, persistensiz versiyasi
 - [ ] Task rollback mexanizmi (har bir `TaskStep` uchun rollback step)
-- [ ] Organizations / Teams / Projects — multi-tenant isolation
-- [ ] RBAC (owner/admin/developer/operator/viewer)
+- [ ] Organizations uchun frontend UI (org switcher, a'zolar boshqaruvi) va apps/jobs'ni organization_id bo'yicha to'liq scope qilish
+- [ ] Device tag'larni boshqarish uchun UI (hozir faqat `PATCH /apps/:id/tags` API orqali)
 - [ ] Developer environment provisioning (Node/Python/Docker/Xcode/Homebrew shablonlari)
 - [ ] Credential rotation UI
 - [ ] GitHub/Azure integratsiyalari
@@ -92,3 +97,5 @@ _(2026-08-24: `screen-api.honeymedia.uz`ga to'g'ridan-to'g'ri so'rov yuborib ko'
 ### 📝 Eslatma
 
 Saytda kod qo'shish/tahrirlash qismi (`frontend/src/pages/FileEditor.jsx`, `backend/src/files`) — mavjud, ushbu refactor'da tegilmadi, ishlab turibdi.
+
+2026-08-25: Bu sessiyada yuklangan zip avvalgi (module restructure/`/api/v1`/docker-swap fix'lardan OLDINGI) fork ekani aniqlandi — lekin unda `organizations`/RBAC moduli va `DeviceSelector.jsx` bor edi, bu loyihada yo'q edi. Ikkalasi qo'lda merge qilindi: eng so'nggi struktura (`src/modules/*`) asos qilib olindi, organizations/RBAC va DeviceSelector shu struktura ustiga ko'chirildi. Agar keyingi safar yana eski zip yuklansangiz — avval qaysi tomonda nima borligini solishtirib ko'ring, birini ikkinchisi bilan ko'r-ko'rona almashtirmang.

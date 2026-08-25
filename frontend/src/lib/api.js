@@ -332,13 +332,14 @@ export const api = {
     logs: (id) =>
         request(`/jobs/${id}/logs`),
 
-    create: (templateSlug, action, args = {}) =>
+    create: (templateSlug, action, args = {}, appId) =>
         request("/jobs", {
           method: "POST",
           body: JSON.stringify({
             templateSlug,
             action,
             args,
+            ...(appId ? { appId } : {}),
           }),
         }),
   },
@@ -412,19 +413,31 @@ export const api = {
           }),
         }),
 
-    updateTags: (id, tags) =>
+    remove: (id) =>
+        request(`/apps/${id}`, {
+          method: "DELETE",
+        }),
+
+    // Target selector — fleet automation shu bilan "qaysi device'lar
+    // shartga mos" ekanini backend'dan so'raydi (platform/tags/online).
+    select: (selector) =>
+        request("/apps/select", {
+          method: "POST",
+          body: JSON.stringify(selector),
+        }),
+
+    setTags: (id, tags) =>
         request(`/apps/${id}/tags`, {
           method: "PATCH",
           body: JSON.stringify({
             tags,
           }),
         }),
-
-    remove: (id) =>
-        request(`/apps/${id}`, {
-          method: "DELETE",
-        }),
   },
+
+  // ============================================================
+  // ORGANIZATIONS
+  // ============================================================
 
   organizations: {
     list: () =>
@@ -436,35 +449,45 @@ export const api = {
     create: (name) =>
         request("/organizations", {
           method: "POST",
-          body: JSON.stringify({ name }),
+          body: JSON.stringify({
+            name,
+          }),
         }),
+
+    members: {
+      list: (id) =>
+          request(`/organizations/${id}/members`),
+
+      invite: (id, email, role) =>
+          request(`/organizations/${id}/members`, {
+            method: "POST",
+            body: JSON.stringify({
+              email,
+              role,
+            }),
+          }),
+
+      updateRole: (id, memberId, role) =>
+          request(`/organizations/${id}/members/${memberId}/role`, {
+            method: "PATCH",
+            body: JSON.stringify({
+              role,
+            }),
+          }),
+
+      remove: (id, memberId) =>
+          request(`/organizations/${id}/members/${memberId}`, {
+            method: "DELETE",
+          }),
+    },
 
     remove: (id) =>
         request(`/organizations/${id}`, {
           method: "DELETE",
         }),
-
-    listMembers: (id) =>
-        request(`/organizations/${id}/members`),
-
-    inviteMember: (id, email, role) =>
-        request(`/organizations/${id}/members`, {
-          method: "POST",
-          body: JSON.stringify({ email, role }),
-        }),
-
-    updateMemberRole: (id, memberId, role) =>
-        request(`/organizations/${id}/members/${memberId}/role`, {
-          method: "PATCH",
-          body: JSON.stringify({ role }),
-        }),
-
-    removeMember: (id, memberId) =>
-        request(`/organizations/${id}/members/${memberId}`, {
-          method: "DELETE",
-        }),
   },
 
+  // ============================================================
   // AUDIT LOGS
   // ============================================================
 

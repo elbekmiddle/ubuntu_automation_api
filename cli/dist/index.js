@@ -34,7 +34,16 @@ function buildProgram() {
         .version('0.1.0');
     program.command('login').description('Login to Screenctl')
         .option('-e, --email <email>').option('-p, --password <password>')
-        .action(async (opts) => loginCommand(opts));
+        .action(async (opts) => {
+        await loginCommand(opts);
+        // Login muvaffaqiyatli bo'lsa (exitCode o'rnatilmagan bo'lsa),
+        // foydalanuvchini darhol interaktiv home shell'ga olib kiramiz —
+        // "screenctl login" dan keyin yalang'och bash prompt'ga
+        // qaytarib qo'ymaymiz (docs: "Userga command yodlatmaymiz").
+        if (process.exitCode !== 1) {
+            await startInteractiveShell();
+        }
+    });
     program.command('register').description('Create a new Screenctl account')
         .option('-e, --email <email>').option('-p, --password <password>').option('-n, --name <name>')
         .action(async (opts) => registerCommand(opts));
