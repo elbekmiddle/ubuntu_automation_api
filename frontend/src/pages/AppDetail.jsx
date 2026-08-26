@@ -21,11 +21,14 @@ import {
     MessageCircle,
     Layers,
     Send,
+    Boxes,
+    Tag,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { jitteredInterval } from "../lib/jitter";
 import { PageHeader, SectionLabel, Panel, StatusBadge, Button, AsciiBar } from "../components/ui";
 import DeviceTerminal from "../components/Terminal";
+import TagEditor from "../components/TagEditor";
 
 function fmtBytes(n) {
     if (n == null) return "—";
@@ -78,7 +81,7 @@ const PROCESS_TYPES = [
     { match: ["discord", "slack", "teams"], icon: MessageCircle, label: "chat" },
 ];
 
-function getPortMeta(processName) {
+function getProcessMeta(processName) {
     if (!processName) return { icon: Plug, label: null };
     const lower = processName.toLowerCase();
     for (const t of PROCESS_TYPES) {
@@ -206,6 +209,16 @@ export default function AppDetail() {
                 <DetailField icon={Clock} label="Last seen" value={timeAgo(app.last_seen_at)} />
                 <DetailField icon={Clock} label="Connected since" value={new Date(app.created_at).toLocaleString()} />
                 <DetailField icon={Server} label="Machine ID" value={app.machine_id ? app.machine_id.slice(0, 16) + "…" : "—"} />
+                <div style={{ minWidth: 200 }}>
+                    <div className="eyebrow" style={{ marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Tag size={11} /> Tags
+                    </div>
+                    <TagEditor
+                        appId={app.id}
+                        tags={app.tags ?? []}
+                        onChange={(tags) => setApp((prev) => ({ ...prev, tags }))}
+                    />
+                </div>
             </Panel>
 
             <SectionLabel index="02" id="hardware">system</SectionLabel>
@@ -302,7 +315,7 @@ export default function AppDetail() {
                     ?.slice()
                     .sort((a, b) => a.port - b.port)
                     .map((p, i) => {
-                        const meta = getPortMeta(p.process);
+                        const meta = getProcessMeta(p.process);
                         const Icon = meta.icon;
                         return (
                             <div
@@ -346,7 +359,84 @@ export default function AppDetail() {
                     })}
             </Panel>
 
-            <SectionLabel index="04" id="terminal">terminal</SectionLabel>
+            <SectionLabel index="04" id="processes">processes</SectionLabel>
+            <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
+                {!metrics.processes && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline ? "Process ma'lumoti hali kelmadi…" : "Device offline — process ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.processes?.length === 0 && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        Process ro'yxati bo'sh.
+                    </div>
+                )}
+                {metrics.processes?.map((p, i) => {
+                    const meta = getProcessMeta(p.command);
+                    const Icon = meta.icon;
+                    return (
+                        <div
+                            key={`${p.pid}:${p.command}`}
+                            className="mono"
+                            style={{
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                padding: "10px 20px",
+                                borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                                fontSize: 12.5,
+                            }}
+                        >
+                            <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                                <Icon size={13} color="var(--text-secondary)" />
+                                <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 260 }}>
+                                    {p.command}
+                                </span>
+                                <span style={{ color: "var(--text-muted)", fontSize: 11 }}>pid {p.pid}</span>
+                            </div>
+                            <span style={{ color: "var(--text-muted)" }}>
+                                cpu {p.cpu.toFixed(1)}% · mem {p.mem.toFixed(1)}%
+                            </span>
+                        </div>
+                    );
+                })}
+            </Panel>
+
+            <SectionLabel index="05" id="services">services</SectionLabel>
+            <Panel style={{ padding: 0, marginBottom: 32, overflow: "hidden" }}>
+                {metrics.services === null && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        {isOnline ? "Service ma'lumoti mavjud emas (systemd topilmadi yoki hali kelmadi)." : "Device offline — service ma'lumoti yo'q."}
+                    </div>
+                )}
+                {metrics.services?.length === 0 && (
+                    <div className="mono" style={{ padding: "14px 20px", fontSize: 12.5, color: "var(--text-muted)" }}>
+                        Ishlab turgan systemd service topilmadi.
+                    </div>
+                )}
+                {metrics.services?.map((s, i) => (
+                    <div
+                        key={s.name}
+                        className="mono"
+                        style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            padding: "10px 20px",
+                            borderTop: i === 0 ? "none" : "1px solid var(--border)",
+                            fontSize: 12.5,
+                        }}
+                    >
+                        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                            <Boxes size={13} color="var(--text-secondary)" />
+                            <span style={{ fontWeight: 600 }}>{s.name}</span>
+                        </div>
+                        <span style={{ color: "var(--success)", fontSize: 11 }}>{s.status}</span>
+                    </div>
+                ))}
+            </Panel>
+
+            <SectionLabel index="06" id="terminal">terminal</SectionLabel>
             <div style={{ marginBottom: 32 }}>
                 <DeviceTerminal appId={app.id} canConnect={canConnect} />
             </div>

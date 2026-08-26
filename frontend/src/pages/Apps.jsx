@@ -8,6 +8,8 @@ import {
     LayoutDashboard,
     Cpu,
     Plug,
+    ListTree,
+    Boxes,
     TerminalSquare,
 } from "lucide-react";
 import { api } from "../lib/api";
@@ -27,13 +29,14 @@ function timeAgo(iso) {
 
 // Har bir device tree tugunining bolalari — hozircha faqat haqiqatan
 // mavjud bo'lgan bo'limlar (AppDetail'dagi SectionLabel id'lariga mos).
-// Network/Processes/Services/Tasks/Logs/Audit — roadmap'da bor, lekin
-// backend'da hali telemetriya yo'q, shuning uchun bu yerga soxta link
-// qo'shilmaydi (qo'shilganda shu ro'yxatga qator sifatida qo'shiladi).
+// Tasks/Logs/Audit — roadmap'da bor, lekin backend'da hali telemetriya/
+// tarix yo'q, shuning uchun bu yerga soxta link qo'shilmagan.
 const DEVICE_SECTIONS = [
     { id: "overview", label: "overview", icon: LayoutDashboard },
     { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
     { id: "network", label: "network · ports", icon: Plug },
+    { id: "processes", label: "processes", icon: ListTree },
+    { id: "services", label: "services", icon: Boxes },
     { id: "terminal", label: "terminal", icon: TerminalSquare },
 ];
 
@@ -155,6 +158,27 @@ export default function Apps() {
                                     >
                                         {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
                                     </span>
+                                    {a.tags?.length > 0 && (
+                                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                                            {a.tags.slice(0, 3).map((t) => (
+                                                <span
+                                                    key={t}
+                                                    style={{
+                                                        fontSize: 9.5,
+                                                        padding: "2px 5px",
+                                                        border: "1px solid var(--border)",
+                                                        borderRadius: 3,
+                                                        color: "var(--text-muted)",
+                                                    }}
+                                                >
+                                                    {t}
+                                                </span>
+                                            ))}
+                                            {a.tags.length > 3 && (
+                                                <span style={{ fontSize: 9.5, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
                                     <span style={{ color: "var(--text-muted)" }}>last seen {timeAgo(a.last_seen_at)}</span>

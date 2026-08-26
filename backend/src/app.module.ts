@@ -18,6 +18,7 @@ import { DistroConfigsModule } from './modules/distro-configs/distro-configs.mod
 import { AuthModule } from './modules/auth/auth.module';
 import { AppsModule } from './modules/apps/apps.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
+import { FleetRunsModule } from './modules/fleet-runs/fleet-runs.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
     DistroConfigsModule,
     AppsModule,
     OrganizationsModule,
+    FleetRunsModule,
   ],
 
   providers: [

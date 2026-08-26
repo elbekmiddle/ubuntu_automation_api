@@ -324,6 +324,82 @@ async function getDocker(): Promise<DockerStatus> {
     }
 }
 
+export interface ProcessInfo {
+    pid: number;
+    cpu: number;
+    mem: number;
+    command: string;
+}
+
+let processesCache: ProcessInfo[] | null = null;
+
+/**
+ * Eng ko'p CPU yeyotgan 15 ta process — to'liq ro'yxat emas (minglab
+ * process bo'lishi mumkin, heartbeat payload'i shishib ketadi), diagnostika
+ * uchun odatda eng "og'ir" processlar muhim.
+ */
+async function collectProcessesNow(): Promise<ProcessInfo[] | null> {
+    try {
+        const { stdout } = await execAsync(
+            'ps -eo pid,pcpu,pmem,comm --sort=-pcpu --no-headers | head -n 15',
+        );
+        const list = stdout
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+                const parts = line.trim().split(/\s+/);
+                const pid = Number(parts[0]);
+                const cpu = Number(parts[1]);
+                const mem = Number(parts[2]);
+                const command = parts.slice(3).join(' ');
+                return { pid, cpu, mem, command };
+            })
+            .filter((p) => Number.isFinite(p.pid) && p.command.length > 0);
+        return list.length > 0 ? list : null;
+    } catch {
+        return null;
+    }
+}
+
+export interface ServiceInfo {
+    name: string;
+    status: string;
+}
+
+let servicesCache: ServiceInfo[] | null = null;
+
+/**
+ * systemd unit'lari — faqat hozir ishlab turganlari (`state=running`).
+ * To'liq ro'yxat (o'chirilgan/faol bo'lmagan unit'lar bilan) juda uzun va
+ * kamdan-kam foydali, shuning uchun bu yerga qo'shilmagan. `systemctl`
+ * topilmasa (systemd'siz konteyner, yoki hali qo'llab-quvvatlanmagan
+ * platforma) `null` qaytadi — frontend buni "not available" deb ko'rsatadi.
+ */
+async function collectServicesNow(): Promise<ServiceInfo[] | null> {
+    if (process.platform !== 'linux') return null;
+    try {
+        const { stdout } = await execAsync(
+            'systemctl list-units --type=service --state=running --no-legend --no-pager --plain 2>/dev/null',
+        );
+        const list = stdout
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+                // UNIT LOAD ACTIVE SUB DESCRIPTION...
+                const parts = line.trim().split(/\s+/);
+                const name = (parts[0] ?? '').replace(/\.service$/, '');
+                const status = parts[3] ?? 'running';
+                return { name, status };
+            })
+            .filter((s) => s.name.length > 0);
+        return list;
+    } catch {
+        return null;
+    }
+}
+
 export interface HeartbeatMetrics {
     cpu: number;
     cores: number;
@@ -336,6 +412,8 @@ export interface HeartbeatMetrics {
     loadavg: number[];
     uptime: number;
     ports: PortInfo[] | null;
+    processes: ProcessInfo[] | null;
+    services: ServiceInfo[] | null;
     [key: string]: unknown;
 }
 
@@ -347,11 +425,19 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
         getDocker(),
     ]);
 
-    // Portlarni har bir heartbeatda emas, har ~3-heartbeatda (taxminan 60s)
-    // yangilaymiz — `ss` chaqirish CPU'ga og'irroq, tez-tez shart emas.
+    // Portlar/processlar/servicelarni har bir heartbeatda emas, har
+    // ~3-heartbeatda (taxminan 60s) yangilaymiz — bularning barchasi
+    // shell chaqirishga tayanadi va CPU'ga og'irroq, tez-tez shart emas.
     heartbeatCounter++;
     if (portsCache === null || heartbeatCounter % 3 === 1) {
-        portsCache = await collectPortsNow();
+        const [ports, processes, services] = await Promise.all([
+            collectPortsNow(),
+            collectProcessesNow(),
+            collectServicesNow(),
+        ]);
+        portsCache = ports;
+        processesCache = processes;
+        servicesCache = services;
     }
 
     return {
@@ -366,5 +452,7 @@ export async function collectHeartbeatMetrics(): Promise<HeartbeatMetrics> {
         loadavg: os.loadavg(),
         uptime: os.uptime(),
         ports: portsCache,
+        processes: processesCache,
+        services: servicesCache,
     };
 }

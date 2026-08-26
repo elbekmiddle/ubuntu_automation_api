@@ -345,6 +345,22 @@ export const api = {
   },
 
   // ============================================================
+  // FLEET RUNS
+  // ============================================================
+
+  fleetRuns: {
+    list: (page = 1, limit = 20) => request(`/fleet-runs?page=${page}&limit=${limit}`),
+
+    get: (id) => request(`/fleet-runs/${id}`),
+
+    create: (templateSlug, action, targetAppIds, args = {}) =>
+        request("/fleet-runs", {
+          method: "POST",
+          body: JSON.stringify({ templateSlug, action, targetAppIds, args }),
+        }),
+  },
+
+  // ============================================================
   // SCHEDULES
   // ============================================================
 
