@@ -90,7 +90,6 @@ export class FleetRunsService {
               dto.action,
               dto.args ?? {},
               t.app_id,
-              userId,
             );
             await this.repo.attachJob(t.id, job.id, job.status);
           } catch (err) {

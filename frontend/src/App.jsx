@@ -14,11 +14,10 @@ import Schedules from "./pages/Schedules";
 import Devices from "./pages/Devices";
 import Apps from "./pages/Apps";
 import AppDetail from "./pages/AppDetail";
-import FleetLaunch from "./pages/FleetLaunch";
-import FleetRuns from "./pages/FleetRuns";
-import FleetRunDetail from "./pages/FleetRunDetail";
 import AuditLogs from "./pages/AuditLogs";
 import Organizations from "./pages/Organizations";
+import FleetRuns from "./pages/FleetRuns";
+import FleetRunDetail from "./pages/FleetRunDetail";
 import Login from "./pages/Login";
 
 export default function App() {
@@ -38,11 +37,10 @@ export default function App() {
           <Route path="/devices" element={<Devices />} />
           <Route path="/apps" element={<Apps />} />
           <Route path="/apps/:id" element={<AppDetail />} />
-          <Route path="/fleet" element={<FleetLaunch />} />
-          <Route path="/fleet-runs" element={<FleetRuns />} />
-          <Route path="/fleet-runs/:id" element={<FleetRunDetail />} />
           <Route path="/audit-logs" element={<AuditLogs />} />
           <Route path="/organizations" element={<Organizations />} />
+          <Route path="/fleet-runs" element={<FleetRuns />} />
+          <Route path="/fleet-runs/:id" element={<FleetRunDetail />} />
           <Route path="/login" element={<Login />} />
         </Route>
       </Routes>

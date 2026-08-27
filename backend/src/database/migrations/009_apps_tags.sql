@@ -1,11 +1,8 @@
--- Target selector (fleet automation) uchun — device'larni erkin teglar
--- bilan guruhlash: "production", "developer", "windows-11" va h.k.
--- Massiv ustun tanlandi (alohida "tags" jadvali emas), chunki tegning o'zi
--- boshqa hech qanday metadata (rang, tavsif) olib yurmaydi — shunchaki
--- filtrlash uchun yorliq. Kelajakda organization-darajasidagi umumiy teg
--- ro'yxati kerak bo'lsa, shunda alohida jadvalga ko'chirish oson.
+-- Target selector (DeviceSelector: platform, tags, os version, online holati
+-- bo'yicha) uchun poydevor — devicelarga erkin tag qo'yish imkoniyati.
+-- Fleet automation (README "Navbatda") shu tag'lar orqali qurilma
+-- guruhlarini tanlaydi (masalan "prod", "staging", "gpu").
 ALTER TABLE apps ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}';
 
--- Teg bo'yicha filtrlash (`tags @> ARRAY[...]` yoki `tags && ARRAY[...]`)
--- tez ishlashi uchun GIN indeks.
+-- Tag bo'yicha filtrlash (`tags @> ARRAY['prod']`) tezroq ishlashi uchun.
 CREATE INDEX IF NOT EXISTS idx_apps_tags ON apps USING GIN (tags);

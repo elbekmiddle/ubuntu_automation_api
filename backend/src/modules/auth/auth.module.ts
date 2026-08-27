@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import {Global, Module} from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 
@@ -10,43 +10,42 @@ import { RefreshTokensRepository } from './refresh-tokens.repository';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { OptionalJwtGuard } from './optional-jwt.guard';
 import { OrganizationsModule } from '../organizations/organizations.module';
-
+@Global()
 @Module({
-  imports: [
-    DatabaseModule,
+    imports: [
+        DatabaseModule,
+        OrganizationsModule,
 
-    // OrganizationsModule ham AuthModule'ni import qiladi (RolesGuard
-    // organization a'zoligini tekshirish uchun JwtAuthGuard'dan
-    // foydalanadi emas, lekin OrganizationsService AuthModule orqali
-    // ro'yxatdan o'tish oqimiga ulanadi) — shuning uchun forwardRef.
-    forwardRef(() => OrganizationsModule),
+        JwtModule.registerAsync({
+            imports: [ConfigModule],
+            inject: [ConfigService],
 
-    JwtModule.registerAsync({
-      imports: [ConfigModule],
-      inject: [ConfigService],
+            useFactory: (config: ConfigService) => ({
+                secret: config.getOrThrow<string>('JWT_SECRET'),
 
-      useFactory: (config: ConfigService) => ({
-        secret: config.getOrThrow<string>('JWT_SECRET'),
+                signOptions: {
+                    expiresIn: Number(
+                        config.get<string>('JWT_ACCESS_TTL_SECONDS') ?? 15 * 60,
+                    ),
+                },
+            }),
+        }),
+    ],
 
-        signOptions: {
-          expiresIn: Number(
-            config.get<string>('JWT_ACCESS_TTL_SECONDS') ?? 15 * 60,
-          ),
-        },
-      }),
-    }),
-  ],
+    controllers: [AuthController],
 
-  controllers: [AuthController],
+    providers: [
+        AuthService,
+        UsersRepository,
+        RefreshTokensRepository,
+        JwtAuthGuard,
+        OptionalJwtGuard,
+    ],
 
-  providers: [
-    AuthService,
-    UsersRepository,
-    RefreshTokensRepository,
-    JwtAuthGuard,
-    OptionalJwtGuard,
-  ],
-
-  exports: [JwtAuthGuard, OptionalJwtGuard, JwtModule],
+    exports: [
+        JwtAuthGuard,
+        OptionalJwtGuard,
+        JwtModule,
+    ],
 })
 export class AuthModule {}

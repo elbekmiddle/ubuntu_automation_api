@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
     RefreshCw,
@@ -9,12 +9,16 @@ import {
     Cpu,
     Plug,
     ListTree,
-    Boxes,
+    Settings2,
     TerminalSquare,
+    Rocket,
+    CheckSquare,
+    Square,
 } from "lucide-react";
 import { api } from "../lib/api";
 import { PageHeader, SectionLabel, Panel, EmptyState, Button, StatusBadge } from "../components/ui";
 import DeviceSelector, { EMPTY_FILTERS, applyDeviceFilters } from "../components/DeviceSelector";
+import FleetLaunchPanel from "../components/FleetLaunchPanel";
 
 function timeAgo(iso) {
     if (!iso) return "—";
@@ -29,14 +33,15 @@ function timeAgo(iso) {
 
 // Har bir device tree tugunining bolalari — hozircha faqat haqiqatan
 // mavjud bo'lgan bo'limlar (AppDetail'dagi SectionLabel id'lariga mos).
-// Tasks/Logs/Audit — roadmap'da bor, lekin backend'da hali telemetriya/
-// tarix yo'q, shuning uchun bu yerga soxta link qo'shilmagan.
+// Tasks/Logs/Audit — roadmap'da bor, lekin backend'da hali telemetriya
+// yo'q, shuning uchun bu yerga soxta link qo'shilmaydi (qo'shilganda shu
+// ro'yxatga qator sifatida qo'shiladi).
 const DEVICE_SECTIONS = [
     { id: "overview", label: "overview", icon: LayoutDashboard },
     { id: "hardware", label: "hardware · docker · swap", icon: Cpu },
     { id: "network", label: "network · ports", icon: Plug },
     { id: "processes", label: "processes", icon: ListTree },
-    { id: "services", label: "services", icon: Boxes },
+    { id: "services", label: "services", icon: Settings2 },
     { id: "terminal", label: "terminal", icon: TerminalSquare },
 ];
 
@@ -46,6 +51,8 @@ export default function Apps() {
     const [error, setError] = useState(null);
     const [expanded, setExpanded] = useState(() => new Set());
     const [filters, setFilters] = useState(EMPTY_FILTERS);
+    const [selected, setSelected] = useState(() => new Set());
+    const [showLaunch, setShowLaunch] = useState(false);
 
     const load = useCallback(async () => {
         setLoading(true);
@@ -79,7 +86,20 @@ export default function Apps() {
     };
 
     const online = apps.filter((a) => a.status === "online").length;
-    const filtered = applyDeviceFilters(apps, filters);
+    const filteredApps = useMemo(() => applyDeviceFilters(apps, filters), [apps, filters]);
+
+    const toggleSelect = (id) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const toggleSelectAll = () => {
+        setSelected((prev) => (prev.size === filteredApps.length ? new Set() : new Set(filteredApps.map((a) => a.id))));
+    };
 
     return (
         <div>
@@ -103,7 +123,35 @@ export default function Apps() {
             )}
 
             {apps.length > 0 && (
-                <DeviceSelector apps={apps} filters={filters} onChange={setFilters} resultCount={filtered.length} />
+                <DeviceSelector apps={apps} filters={filters} onChange={setFilters} resultCount={filteredApps.length} />
+            )}
+
+            {filteredApps.length > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+                    <button
+                        onClick={toggleSelectAll}
+                        className="mono"
+                        style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 11.5,
+                            color: "var(--text-secondary)",
+                            background: "transparent",
+                            border: "none",
+                            cursor: "pointer",
+                            padding: 0,
+                        }}
+                    >
+                        {selected.size === filteredApps.length ? <CheckSquare size={13} /> : <Square size={13} />}
+                        {selected.size > 0 ? `${selected.size} selected` : "select all"}
+                    </button>
+                    {selected.size > 0 && (
+                        <Button icon={Rocket} variant="accent" onClick={() => setShowLaunch(true)}>
+                            run on {selected.size} device{selected.size > 1 ? "s" : ""}
+                        </Button>
+                    )}
+                </div>
             )}
 
             <SectionLabel index="—">devices</SectionLabel>
@@ -118,13 +166,16 @@ export default function Apps() {
                         </div>
                     </EmptyState>
                 )}
-                {apps.length > 0 && filtered.length === 0 && (
+                {apps.length > 0 && filteredApps.length === 0 && (
                     <EmptyState>
-                        <span>no devices match these filters</span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                            <span>no devices match these filters</span>
+                        </div>
                     </EmptyState>
                 )}
-                {filtered.map((a, i) => {
+                {filteredApps.map((a, i) => {
                     const isOpen = expanded.has(a.id);
+                    const isSelected = selected.has(a.id);
                     return (
                         <div key={a.id} style={{ borderTop: i === 0 ? "none" : "1px solid var(--border)" }}>
                             <div
@@ -140,6 +191,15 @@ export default function Apps() {
                                 }}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
+                                    <span
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleSelect(a.id);
+                                        }}
+                                        style={{ display: "flex", flexShrink: 0, color: isSelected ? "var(--accent)" : "var(--text-muted)" }}
+                                    >
+                                        {isSelected ? <CheckSquare size={14} /> : <Square size={14} />}
+                                    </span>
                                     {isOpen ? (
                                         <ChevronDown size={14} color="var(--text-muted)" style={{ flexShrink: 0 }} />
                                     ) : (
@@ -159,23 +219,23 @@ export default function Apps() {
                                         {a.hostname ? `${a.hostname} · ${a.os_platform ?? ""} ${a.os_release ?? ""}`.trim() : "—"}
                                     </span>
                                     {a.tags?.length > 0 && (
-                                        <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
+                                        <div style={{ display: "flex", gap: 5, flexShrink: 0 }}>
                                             {a.tags.slice(0, 3).map((t) => (
                                                 <span
                                                     key={t}
                                                     style={{
-                                                        fontSize: 9.5,
-                                                        padding: "2px 5px",
-                                                        border: "1px solid var(--border)",
+                                                        fontSize: 10,
+                                                        padding: "2px 7px",
                                                         borderRadius: 3,
-                                                        color: "var(--text-muted)",
+                                                        border: "1px solid var(--border)",
+                                                        color: "var(--text-secondary)",
                                                     }}
                                                 >
-                                                    {t}
+                                                    #{t}
                                                 </span>
                                             ))}
                                             {a.tags.length > 3 && (
-                                                <span style={{ fontSize: 9.5, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>
+                                                <span style={{ fontSize: 10, color: "var(--text-muted)" }}>+{a.tags.length - 3}</span>
                                             )}
                                         </div>
                                     )}
@@ -213,6 +273,9 @@ export default function Apps() {
                                     {DEVICE_SECTIONS.map((s) => (
                                         <Link
                                             key={s.id}
+                                            // "overview" — sahifaning standart (hash'siz) holati:
+                                            // /apps/:id ochilganda allaqachon eng tepada overview
+                                            // ko'rinadi, shuning uchun unga alohida #overview qo'shmaymiz.
                                             to={s.id === "overview" ? `/apps/${a.id}` : `/apps/${a.id}#${s.id}`}
                                             className="mono"
                                             style={{
@@ -235,6 +298,14 @@ export default function Apps() {
                     );
                 })}
             </Panel>
+
+            {showLaunch && (
+                <FleetLaunchPanel
+                    appIds={[...selected]}
+                    deviceFilter={filters}
+                    onClose={() => setShowLaunch(false)}
+                />
+            )}
         </div>
     );
 }

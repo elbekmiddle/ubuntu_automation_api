@@ -18,7 +18,7 @@ import { DistroConfigsModule } from './modules/distro-configs/distro-configs.mod
 import { AuthModule } from './modules/auth/auth.module';
 import { AppsModule } from './modules/apps/apps.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
-import { FleetRunsModule } from './modules/fleet-runs/fleet-runs.module';
+import { FleetModule } from './modules/fleet/fleet.module';
 
 @Module({
   imports: [
@@ -54,7 +54,7 @@ import { FleetRunsModule } from './modules/fleet-runs/fleet-runs.module';
     DistroConfigsModule,
     AppsModule,
     OrganizationsModule,
-    FleetRunsModule,
+    FleetModule,
   ],
 
   providers: [

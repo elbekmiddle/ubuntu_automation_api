@@ -40,11 +40,11 @@ function buildProgram(): Command {
         .option('-e, --email <email>').option('-p, --password <password>')
         .action(async (opts) => {
             await loginCommand(opts);
-            // Login muvaffaqiyatli bo'lsa (exitCode o'rnatilmagan bo'lsa),
-            // foydalanuvchini darhol interaktiv home shell'ga olib kiramiz —
-            // "screenctl login" dan keyin yalang'och bash prompt'ga
-            // qaytarib qo'ymaymiz (docs: "Userga command yodlatmaymiz").
-            if (process.exitCode !== 1) {
+            // Login muvaffaqiyatli o'tsa (exitCode o'rnatilmagan bo'lsa),
+            // foydalanuvchini terminalga qaytarib qo'ymay, to'g'ridan-to'g'ri
+            // interaktiv home menyusiga o'tkazamiz — "screenctl login" ham
+            // argumentsiz "screenctl" kabi ishlaydi, faqat avval login qiladi.
+            if (!process.exitCode) {
                 await startInteractiveShell();
             }
         });

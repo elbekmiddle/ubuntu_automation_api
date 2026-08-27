@@ -1,15 +1,4 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  UseGuards,
-  createParamDecorator,
-  ExecutionContext,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards, createParamDecorator, ExecutionContext } from '@nestjs/common';
 import type { Request } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { CurrentUser } from '../auth/current-user.decorator';
@@ -25,79 +14,65 @@ import { Roles } from './roles.decorator';
 // uchun), shuning uchun request'dan to'g'ridan-to'g'ri o'qiydigan kichik
 // qo'shimcha decorator. `DeviceTrackingMiddleware`/`JwtAuthGuard` orqali
 // `req.userEmail` allaqachon o'rnatiladi (auth/jwt-auth.guard.ts'ga qarang).
-const CurrentUserEmail = createParamDecorator(
-  (_: unknown, ctx: ExecutionContext): string | undefined => {
+const CurrentUserEmail = createParamDecorator((_: unknown, ctx: ExecutionContext): string | undefined => {
     const req = ctx.switchToHttp().getRequest<Request>();
-    return req.userEmail;
-  },
-);
+    return (req as any).userEmail;
+});
 
 @UseGuards(JwtAuthGuard)
 @Controller('organizations')
 export class OrganizationsController {
-  constructor(private readonly orgService: OrganizationsService) {}
+    constructor(private readonly orgService: OrganizationsService) {}
 
-  @Post()
-  create(
-    @CurrentUser() userId: string,
-    @Body() body: CreateOrganizationDTO,
-    @CurrentUserEmail() email: string,
-  ) {
-    return this.orgService.create(userId, email, body.name);
-  }
+    @Post()
+    create(@CurrentUser() userId: string, @Body() body: CreateOrganizationDTO, @CurrentUserEmail() email: string) {
+        return this.orgService.create(userId, email, body.name);
+    }
 
-  @Get()
-  findAll(@CurrentUser() userId: string) {
-    return this.orgService.findAllForUser(userId);
-  }
+    @Get()
+    findAll(@CurrentUser() userId: string) {
+        return this.orgService.findAllForUser(userId);
+    }
 
-  @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('viewer', 'operator', 'developer', 'admin', 'owner')
-  findOne(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.orgService.findOneForUser(userId, id);
-  }
+    @Get(':id')
+    @UseGuards(RolesGuard)
+    @Roles('viewer', 'operator', 'developer', 'admin', 'owner')
+    findOne(@CurrentUser() userId: string, @Param('id') id: string) {
+        return this.orgService.findOneForUser(userId, id);
+    }
 
-  @Get(':id/members')
-  @UseGuards(RolesGuard)
-  @Roles('viewer', 'operator', 'developer', 'admin', 'owner')
-  listMembers(@Param('id') id: string) {
-    return this.orgService.listMembers(id);
-  }
+    @Get(':id/members')
+    @UseGuards(RolesGuard)
+    @Roles('viewer', 'operator', 'developer', 'admin', 'owner')
+    listMembers(@Param('id') id: string) {
+        return this.orgService.listMembers(id);
+    }
 
-  @Post(':id/members')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'owner')
-  inviteMember(
-    @CurrentUser() userId: string,
-    @Param('id') id: string,
-    @Body() body: InviteMemberDTO,
-  ) {
-    return this.orgService.inviteMember(id, userId, body.email, body.role);
-  }
+    @Post(':id/members')
+    @UseGuards(RolesGuard)
+    @Roles('admin', 'owner')
+    inviteMember(@CurrentUser() userId: string, @Param('id') id: string, @Body() body: InviteMemberDTO) {
+        return this.orgService.inviteMember(id, userId, body.email, body.role);
+    }
 
-  @Patch(':id/members/:memberId/role')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'owner')
-  updateMemberRole(
-    @Param('id') id: string,
-    @Param('memberId') memberId: string,
-    @Body() body: UpdateMemberRoleDTO,
-  ) {
-    return this.orgService.updateMemberRole(id, memberId, body.role);
-  }
+    @Patch(':id/members/:memberId/role')
+    @UseGuards(RolesGuard)
+    @Roles('admin', 'owner')
+    updateMemberRole(@Param('id') id: string, @Param('memberId') memberId: string, @Body() body: UpdateMemberRoleDTO) {
+        return this.orgService.updateMemberRole(id, memberId, body.role);
+    }
 
-  @Delete(':id/members/:memberId')
-  @UseGuards(RolesGuard)
-  @Roles('admin', 'owner')
-  removeMember(@Param('id') id: string, @Param('memberId') memberId: string) {
-    return this.orgService.removeMember(id, memberId);
-  }
+    @Delete(':id/members/:memberId')
+    @UseGuards(RolesGuard)
+    @Roles('admin', 'owner')
+    removeMember(@Param('id') id: string, @Param('memberId') memberId: string) {
+        return this.orgService.removeMember(id, memberId);
+    }
 
-  @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('owner')
-  remove(@CurrentUser() userId: string, @Param('id') id: string) {
-    return this.orgService.remove(userId, id);
-  }
+    @Delete(':id')
+    @UseGuards(RolesGuard)
+    @Roles('owner')
+    remove(@CurrentUser() userId: string, @Param('id') id: string) {
+        return this.orgService.remove(userId, id);
+    }
 }
