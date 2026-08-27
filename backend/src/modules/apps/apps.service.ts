@@ -82,6 +82,7 @@ export class AppsService {
       hashToken(registrationToken),
       permission,
       machineId ?? null,
+      await this.repo.findOwnerOrganizationId(userId),
     );
     this.logger.log(`Created app "${name}" (${permission}) for user ${userId}`);
 

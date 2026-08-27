@@ -4,6 +4,7 @@ import { DatabaseService } from '../../database/database.service';
 export interface AppRow {
   id: string;
   user_id: string;
+  organization_id: string | null;
   name: string;
   registration_token_hash: string;
   status: 'offline' | 'online';
@@ -19,9 +20,34 @@ export interface AppRow {
   updated_at: Date;
 }
 
+// Bu userga "ko'rinadigan" (target qila oladigan) apps'ning umumiy WHERE
+// sharti — o'zi yaratgan (`user_id`) YOKI a'zo bo'lgan tashkilotga
+// tegishli (`organization_id`) bo'lsa. Faqat "ko'rish/target qilish"
+// uchun ishlatiladi — o'chirish/tag o'zgartirish hali ham faqat asl
+// egasiga ruxsat etiladi (RBAC rol darajasidagi cheklovlar hali yo'q,
+// shuning uchun yozish huquqini butun tashkilotga ochish xavfli bo'lardi).
+const VISIBLE_TO_USER_CLAUSE = `(
+  apps.user_id = $1
+  OR apps.organization_id IN (
+    SELECT organization_id FROM organization_members
+    WHERE user_id = $1 AND status = 'active'
+  )
+)`;
+
 @Injectable()
 export class AppsRepository {
   constructor(private readonly db: DatabaseService) {}
+
+  /** Yangi user'ning "owner" bo'lgan eng birinchi tashkiloti (odatda shaxsiy workspace). */
+  async findOwnerOrganizationId(userId: string): Promise<string | null> {
+    const { rows } = await this.db.query<{ organization_id: string }>(
+      `SELECT organization_id FROM organization_members
+       WHERE user_id = $1 AND role = 'owner'
+       ORDER BY created_at ASC LIMIT 1`,
+      [userId],
+    );
+    return rows[0]?.organization_id ?? null;
+  }
 
   async create(
     userId: string,
@@ -29,11 +55,19 @@ export class AppsRepository {
     registrationTokenHash: string,
     permission: 'read_only' | 'read_write' = 'read_write',
     machineId: string | null = null,
+    organizationId: string | null = null,
   ): Promise<AppRow> {
     const { rows } = await this.db.query<AppRow>(
-      `INSERT INTO apps (user_id, name, registration_token_hash, permission, machine_id)
-             VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [userId, name, registrationTokenHash, permission, machineId],
+      `INSERT INTO apps (user_id, name, registration_token_hash, permission, machine_id, organization_id)
+             VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [
+        userId,
+        name,
+        registrationTokenHash,
+        permission,
+        machineId,
+        organizationId,
+      ],
     );
     return rows[0];
   }
@@ -66,7 +100,9 @@ export class AppsRepository {
 
   async findAllForUser(userId: string): Promise<AppRow[]> {
     const { rows } = await this.db.query<AppRow>(
-      `SELECT * FROM apps WHERE user_id = $1 ORDER BY created_at DESC`,
+      `SELECT DISTINCT apps.* FROM apps
+       WHERE ${VISIBLE_TO_USER_CLAUSE}
+       ORDER BY apps.created_at DESC`,
       [userId],
     );
     return rows;
@@ -74,8 +110,9 @@ export class AppsRepository {
 
   async findByIdForUser(userId: string, id: string): Promise<AppRow | null> {
     const { rows } = await this.db.query<AppRow>(
-      `SELECT * FROM apps WHERE id = $1 AND user_id = $2`,
-      [id, userId],
+      `SELECT DISTINCT apps.* FROM apps
+       WHERE apps.id = $2 AND ${VISIBLE_TO_USER_CLAUSE}`,
+      [userId, id],
     );
     return rows[0] ?? null;
   }
@@ -166,7 +203,7 @@ export class AppsRepository {
     userId: string,
     selector: { platform?: string[]; tags?: string[]; online?: boolean },
   ): Promise<AppRow[]> {
-    const conditions: string[] = ['user_id = $1'];
+    const conditions: string[] = [VISIBLE_TO_USER_CLAUSE];
     const params: unknown[] = [userId];
 
     if (selector.platform?.length) {
@@ -190,7 +227,7 @@ export class AppsRepository {
     }
 
     const { rows } = await this.db.query<AppRow>(
-      `SELECT * FROM apps WHERE ${conditions.join(' AND ')} ORDER BY created_at DESC`,
+      `SELECT DISTINCT apps.* FROM apps WHERE ${conditions.join(' AND ')} ORDER BY apps.created_at DESC`,
       params,
     );
     return rows;

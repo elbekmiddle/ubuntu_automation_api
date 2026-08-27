@@ -8,13 +8,13 @@ import { SchedulesController } from './schedules.controller';
 import { ScheduleTriggerProcessor } from './schedule-trigger.processor';
 
 @Module({
-    imports: [
-        DatabaseModule,
-        TemplatesModule,
-        JobsModule,
-        BullModule.registerQueue({ name: 'schedule-trigger' }),
-    ],
-    controllers: [SchedulesController],
-    providers: [SchedulesService, ScheduleTriggerProcessor],
+  imports: [
+    DatabaseModule,
+    TemplatesModule,
+    JobsModule,
+    BullModule.registerQueue({ name: 'schedule-trigger' }),
+  ],
+  controllers: [SchedulesController],
+  providers: [SchedulesService, ScheduleTriggerProcessor],
 })
 export class SchedulesModule {}
